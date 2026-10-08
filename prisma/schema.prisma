@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 1. DATA MASTER STAF
+model Staff {
+  staff_id       String         @id
+  nama           String
+  posisi         String
+  desk           String?
+  shift          String?
+  pin            String?        @default("1234") // Tambahan kolom PIN untuk login
+  active         Boolean        @default(true)
+  
+  transaksi      Transaksi[]
+  cases          CaseFollowUp[]
+  shift_closings ShiftClosing[]
+}
+
+// 2. DATA MASTER BARANG
+model MasterItem {
+  item_code    String            @id
+  desk         String?
+  kategori     String?
+  nama_item    String
+  billing_type String?
+  harga        Int
+  active       Boolean           @default(true)
+  details      DetailTransaksi[]
+}
+
+// 3. DATA TRANSAKSI UTAMA
+model Transaksi {
+  no_transaksi   String            @id
+  tanggal        DateTime          @default(now())
+  waktu          DateTime          @default(now())
+  desk           String?
+  nama_tamu      String?
+  room           String?
+  reference      String?
+  grand_total    Int
+  amount_paid    Int
+  balance        Int
+  payment_status String
+  payment_method String
+  remark         String?
+  
+  staff_id       String
+  staff          Staff             @relation(fields: [staff_id], references: [staff_id])
+  
+  details        DetailTransaksi[]
+}
+
+// 4. RINCIAN KERANJANG BARANG
+model DetailTransaksi {
+  id           Int        @id @default(autoincrement())
+  qty          Int
+  duration     Int
+  rate         Int
+  discount     Int
+  total        Int
+  notes        String?
+
+  no_transaksi String
+  transaksi    Transaksi  @relation(fields: [no_transaksi], references: [no_transaksi])
+  
+  item_code    String
+  item         MasterItem @relation(fields: [item_code], references: [item_code])
+}
+
+// 5. TUGAS OPERASIONAL (CASE)
+model CaseFollowUp {
+  case_no     String    @id
+  tanggal     DateTime  @default(now())
+  waktu       DateTime  @default(now())
+  desk        String?
+  case_type   String?
+  nama_tamu   String?
+  room        String?
+  priority    String?
+  status      String
+  due_date    DateTime?
+  description String?
+
+  assigned_to String
+  staff       Staff     @relation(fields: [assigned_to], references: [staff_id])
+}
+
+// 6. TUTUP KASIR
+model ShiftClosing {
+  close_no      String   @id
+  tanggal       DateTime @default(now())
+  shift         String?
+  opening_cash  Int
+  cash_sales    Int
+  card_sales    Int
+  expected_cash Int
+  actual_cash   Int
+  variance      Int
+
+  staff_id      String
+  staff         Staff    @relation(fields: [staff_id], references: [staff_id])
+}
