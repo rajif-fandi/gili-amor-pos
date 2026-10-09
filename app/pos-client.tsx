@@ -617,7 +617,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
     default_rate: "", 
     category: "CHARGE", 
     billing_type: "PER_UNIT",
-    desk: "coffee",
+    desk: "none",  // <-- Sudah di-set otomatis menjadi "none" (No Logo)
     notes: "" 
   });
   
@@ -690,7 +690,25 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '12px', fontWeight: 600 }}>Icon / Logo</label>
                   <select value={formData.desk} onChange={(e) => setFormData({...formData, desk: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    <option value="coffee">Coffee / Breakfast</option><option value="bed">Bed / Room</option><option value="bike">Bike / Vehicle</option><option value="spa">Spa / Treatment</option><option value="car">Car / Transport</option><option value="laundry">Laundry</option><option value="sun">Sun / Essentials</option><option value="rent">Rent / E-Bike</option><option value="dive">Dive / Activity</option>
+                    <option value="none">No Logo / Default</option>
+                    <option value="coffee">Coffee / Breakfast</option>
+                    <option value="bed">Bed / Room</option>
+                    <option value="bike">Bike / Vehicle</option>
+                    <option value="spa">Spa / Treatment</option>
+                    <option value="car">Car / Transfer</option>
+                    <option value="laundry">Laundry</option>
+                    <option value="sun">Sun / Essentials</option>
+                    <option value="rent">Rent / E-Bike</option>
+                    <option value="dive">Dive / Snorkeling</option>
+                    <option value="clock">Clock / Late Charge</option>
+                    <option value="cake">Cake / Celebration</option>
+                    <option value="utensils">Utensils / Restaurant</option>
+                    <option value="camera">Camera / Go Pro</option>
+                    <option value="fish">Fish / Fishing</option>
+                    <option value="boat">Boat / Trip</option>
+                    <option value="water">Water / Drinks</option>
+                    <option value="buy">Shopping Bag / Retail</option>
+                    <option value="shirt">Shirt / Apparel</option>
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
