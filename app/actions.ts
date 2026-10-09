@@ -112,27 +112,27 @@ export async function addMasterItem(data: {
 
 export async function deleteMasterItem(itemCode: string) {
   try {
-    // Menggunakan update untuk menonaktifkan item jika sudah terikat transaksi, 
-    // atau delete jika tidak ada relasi.
-    await prisma.masterItem.update({
+    // 1. Coba HAPUS PERMANEN (Hard Delete) dari database Supabase terlebih dahulu
+    await prisma.masterItem.delete({
       where: { item_code: String(itemCode) },
-      data: { active: false },
     });
 
     revalidatePath('/');
     return { success: true };
   } catch (error: any) {
+    // 2. Jika error (biasanya karena barang sudah terikat di riwayat struk/transaksi tamu),
+    // maka kita cegah database rusak dengan melakukan SOFT DELETE (menyembunyikannya dari web)
     try {
-      // Fallback hapus permanen jika belum ada transaksi terkait
-      await prisma.masterItem.delete({
+      await prisma.masterItem.update({
         where: { item_code: String(itemCode) },
+        data: { active: false },
       });
 
       revalidatePath('/');
       return { success: true };
     } catch (err: any) {
       console.error("DETAIL ERROR PRISMA DELETE MASTER:", err);
-      return { success: false, error: err.message || "Gagal menghapus produk karena sudah terikat dengan data transaksi." };
+      return { success: false, error: err.message || "Gagal menghapus produk." };
     }
   }
 }
