@@ -181,14 +181,6 @@ const buyProducts = [
   { id: 304, name: "Gili Amor T-Shirt", price: 200000, category: "Apparel", icon: "shirt" as IconName, color: "blue" },
 ];
 
-const recentActivities = [
-  { time: "09:42", guest: "Sophie Laurent", detail: "Late Check-out · Room A-03", amount: 150000, icon: "clock" as IconName, color: "blue" },
-  { time: "09:18", guest: "Lucas Martin", detail: "Bicycle Rental · Room B-07", amount: 150000, icon: "bike" as IconName, color: "mint" },
-  { time: "08:55", guest: "Emma Wilson", detail: "Airport Transfer · Room C-11", amount: 450000, icon: "car" as IconName, color: "sky" },
-  { time: "08:31", guest: "Noah Williams", detail: "Breakfast · Room A-08", amount: 240000, icon: "coffee" as IconName, color: "peach" },
-  { time: "08:04", guest: "Mia Andersen", detail: "Spa Treatment · Room B-02", amount: 350000, icon: "spa" as IconName, color: "rose" },
-];
-
 const controlCenterItems = [
   { label: "Reception POS", description: "Guest services & charges", icon: "reception" as IconName, color: "blue" },
   { label: "Rent POS", description: "Equipment & bicycle rental", icon: "rent" as IconName, color: "mint" },
@@ -204,11 +196,9 @@ const controlCenterItems = [
 ];
 
 function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
-  // Mengambil maksimal 5 transaksi terakhir dari database
   const recentActivities = transactions.slice(0, 5).map((trx: any) => ({
     time: trx.time,
     guest: trx.guest,
-    // Menampilkan nama barang pertama yang dibeli + nomor kamar
     detail: trx.items && trx.items.length > 0 
       ? `${trx.items[0].name} ${trx.items.length > 1 ? `(+${trx.items.length - 1} item)` : ''} · Room ${trx.room}` 
       : `Payment · Room ${trx.room}`,
@@ -434,13 +424,9 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
 }
 
 function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
-  // 1. Mengubah openingCash menjadi state agar bisa diisi manual oleh kasir
   const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
   const openingCash = Number(openingCashInput) || 0;
 
-  // 2. Filter transaksi hanya yang dilakukan hari ini ATAU oleh staf yang sedang login 
-  // (Untuk sementara kita asumsikan semua transaksi di-passing, 
-  // idealnya difilter per tanggal, tapi ini sudah lebih akurat)
   const displayRows = transactions.length > 0 ? transactions : [];
   const cashSales = displayRows.filter(t => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
   const cardSales = displayRows.filter(t => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -452,7 +438,6 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
   const actualValue = Number(actualCash) || 0;
   const variance = actualValue - expectedCash;
 
-  // Jika expectedCash berubah karena input modal berubah, kita update juga nilai default actualCash
   useEffect(() => {
     setActualCash(expectedCash.toString());
   }, [expectedCash]);
@@ -466,7 +451,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
       expectedCash, 
       actualCash: actualValue, 
       variance, 
-      shift: currentStaff ? currentStaff.shift : "Morning" // Ambil shift sesuai data staf
+      shift: currentStaff ? currentStaff.shift : "Morning" 
     });
     if (result.success) { 
       alert("Shift closing berhasil disubmit!"); 
@@ -572,9 +557,7 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
 }
 
 function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
-  // Menghitung total dan status dari database riil
   const totalCases = cases.length;
-  // Menghitung tugas yang sudah selesai (selain OPEN)
   const resolvedCasesCount = cases.filter((c: any) => c.status !== "OPEN").length; 
 
   return (
@@ -627,61 +610,118 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
 function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Menambahkan field 'icon' pada state form
-  const [formData, setFormData] = useState({ name: "", price: "", category: "Room Charges", icon: "coffee" });
+  
+  const [formData, setFormData] = useState({ 
+    item_code: "", 
+    item_service: "", 
+    default_rate: "", 
+    category: "CHARGE", 
+    billing_type: "PER_UNIT",
+    desk: "coffee",
+    notes: "" 
+  });
+  
   const displayRows = products.length > 0 ? products : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Mengirimkan formData.icon ke database melalui parameter 'desk'
-    const result = await addMasterItem({ nama_item: formData.name, harga: Number(formData.price), kategori: formData.category, desk: formData.icon });
-    if (result.success) { setIsModalOpen(false); window.location.reload(); } else { alert("Gagal menyimpan: " + result.error); }
+    const result = await addMasterItem({ 
+      item_code: formData.item_code,
+      item_service: formData.item_service, 
+      default_rate: Number(formData.default_rate), 
+      category: formData.category, 
+      billing_type: formData.billing_type,
+      desk: formData.desk,
+      notes: formData.notes
+    });
+    
+    if (result.success) { 
+      setIsModalOpen(false); 
+      window.location.reload(); 
+    } else { 
+      alert("Gagal menyimpan: " + result.error); 
+    }
     setIsSubmitting(false);
   };
+
   const handleDelete = async (itemCode: string) => {
-    if (confirm("Yakin hapus?")) { const result = await deleteMasterItem(itemCode); if (result.success) window.location.reload(); }
+    if (confirm("Yakin hapus?")) { 
+      const result = await deleteMasterItem(itemCode); 
+      if (result.success) window.location.reload(); 
+    }
   };
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" type="button" onClick={() => setIsModalOpen(true)}>Add New Item</button></header>
+      <header className="workspace-header">
+        <div><h2>Master Data</h2></div>
+        <button className="export-button add-case-button" type="button" onClick={() => setIsModalOpen(true)}>Add New Item</button>
+      </header>
+      
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', color: '#0f172a' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px' }}>Add New Item</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item Name</label><input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Price (Rp)</label><input type="number" required value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}><option value="Room Charges">Room Charges</option><option value="Vehicles">Vehicles</option><option value="Miscellaneous">Miscellaneous</option></select></div>
               
-              {/* PILIHAN ICON / LOGO PRODUK */}
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Icon / Logo</label>
-                <select value={formData.icon} onChange={(e) => setFormData({...formData, icon: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                  <option value="coffee">Coffee / Breakfast</option>
-                  <option value="bed">Bed / Room</option>
-                  <option value="bike">Bike / Vehicle</option>
-                  <option value="spa">Spa / Treatment</option>
-                  <option value="car">Car / Transport</option>
-                  <option value="laundry">Laundry</option>
-                  <option value="sun">Sun / Essentials</option>
-                </select>
+              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item Code (Manual)</label><input type="text" placeholder="Cth: RENT-BIKE" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              
+              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item / Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              
+              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Category</label>
+                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Billing Type</label>
+                  <select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Icon / Logo</label>
+                  <select value={formData.desk} onChange={(e) => setFormData({...formData, desk: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="coffee">Coffee / Breakfast</option><option value="bed">Bed / Room</option><option value="bike">Bike / Vehicle</option><option value="spa">Spa / Treatment</option><option value="car">Car / Transport</option><option value="laundry">Laundry</option><option value="sun">Sun / Essentials</option><option value="rent">Rent / E-Bike</option><option value="dive">Dive / Activity</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Notes</label>
+                  <input type="text" placeholder="Cth: Payment only" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Save Item</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+                <button type="submit" disabled={isSubmitting} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>{isSubmitting ? "Saving..." : "Save Item"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
+      
       <div className="workspace-content">
         <table className="data-table">
-          <thead><tr><th>NAME</th><th>CATEGORY</th><th>PRICE</th><th>ACTION</th></tr></thead>
+          <thead><tr><th>ITEM CODE</th><th>ITEM / SERVICE</th><th>CATEGORY</th><th>BILLING</th><th>RATE</th><th>ACTION</th></tr></thead>
           <tbody>
-            {displayRows.map((row: any) => (<tr key={row.id}><td>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td><td><button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td></tr>))}
+            {displayRows.map((row: any) => (
+              <tr key={row.id}>
+                <td><strong>{row.id}</strong></td>
+                <td>{row.name}<br/><small style={{color: '#64748b'}}>{row.notes || "-"}</small></td>
+                <td><span className="badge category">{row.category}</span></td>
+                <td>{row.billing_type}</td>
+                <td>{formatIDR(row.price)}</td>
+                <td><button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Delete</button></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -774,7 +814,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
   const router = useRouter();
 
-  // CEK SESI LOGIN DI BROWSER
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
     if (sessionData) {
@@ -791,7 +830,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
   const activeProducts = activePage === "Rent" ? rentProducts : activePage === "Boat" ? boatProducts : activePage === "Buy" ? buyProducts : (initialProducts && initialProducts.length > 0 ? initialProducts : products);
-  const categories = activePage === "Rent" ? ["All Items", "Vehicles", "Equipment"] : activePage === "Boat" ? ["All Items", "Activities", "Transport"] : activePage === "Buy" ? ["All Items", "Essentials", "Apparel"] : ["All Items", "Room Charges", "Deposits", "Miscellaneous"];
+  const categories = activePage === "Rent" ? ["All Items", "Vehicles", "Equipment"] : activePage === "Boat" ? ["All Items", "Activities", "Transport"] : activePage === "Buy" ? ["All Items", "Essentials", "Apparel"] : ["All Items", "CHARGE", "RENTAL", "ACTIVITY", "TRANSFER", "RETAIL"];
   
   const visibleProducts = useMemo(() => activeProducts.filter((product) => (activeCategory === "All Items" || product.category === activeCategory) && product.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
   const cartItems = activeProducts.filter((product) => cart[product.id]).map((product) => ({ ...product, quantity: cart[product.id] }));
@@ -825,7 +864,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           ))}
         </nav>
         
-        {/* TAMPILAN KARTU STAF & TOMBOL LOGOUT */}
         <div className="staff-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
             <div className="avatar">{currentStaff ? currentStaff.nama.slice(0, 2).toUpperCase() : "GA"}</div>
@@ -861,7 +899,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         <div className="catalog-body">
           <div className="product-grid">
             {visibleProducts.map((product) => (
-              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id, 1)}>
+              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id as number, 1)}>
                 <div className={`product-icon ${product.color}`}><Icon name={product.icon} size={27} strokeWidth={1.6} /></div>
                 <div className="product-copy"><h3>{product.name}</h3><p>{product.category}</p></div>
                 <strong>{formatIDR(product.price)}</strong><span className="add-product">+</span>
@@ -885,7 +923,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
             <div className="cart-item" key={item.id}>
               <div className={`cart-icon ${item.color}`}><Icon name={item.icon} size={19} strokeWidth={1.7} /></div>
               <div className="cart-item-copy"><h4>{item.name}</h4><p>{formatIDR(item.price)}</p></div>
-              <div className="quantity"><button onClick={() => updateQuantity(item.id, -1)}>−</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id, 1)}>+</button></div>
+              <div className="quantity"><button onClick={() => updateQuantity(item.id as number, -1)}>−</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id as number, 1)}>+</button></div>
             </div>
           ))}
         </div>
@@ -902,14 +940,13 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           </div>
 
          <button className={`save-button ${saved ? "saved" : ""}`} disabled={cartItems.length === 0} onClick={async () => {
-            // MENGAMBIL NILAI DARI INPUT ROOM NUMBER YANG DIKETIK STAF
             const roomInputValue = (document.getElementById("room-input") as HTMLInputElement)?.value || "Walk-in";
             
             const finalOrderData = { 
               guestName: guestName || "Walk-in Guest", 
               paymentMethod: payment, 
               totalAmount: subtotal - discount, 
-              room: roomInputValue, // Mengirim nomor kamar yang diisi staf
+              room: roomInputValue,
               staffId: currentStaff ? currentStaff.id : undefined, 
               items: Object.entries(cart).map(([itemId, qty]) => { 
                 const product = activeProducts.find((p) => String(p.id) === String(itemId)); 

@@ -7,12 +7,11 @@ export default async function Page() {
   const dbItems = await prisma.masterItem.findMany({ where: { active: true } });
   const dbStaff = await prisma.staff.findMany({ where: { active: true } });
   
-  // PERBAIKAN: Ambil transaksi beserta detail rincian barangnya untuk Struk
   const dbTransaksi = await prisma.transaksi.findMany({
     orderBy: { tanggal: 'desc' },
     include: {
       details: {
-        include: { item: true } // Mengambil relasi nama barang dari MasterItem
+        include: { item: true } 
       }
     }
   });
@@ -26,12 +25,14 @@ export default async function Page() {
     include: { staff: true } 
   });
 
-  // 2. Format data agar cocok dengan desain UI
+  // 2. MENGGUNAKAN NAMA KOLOM BARU SESUAI BLUEPRINT
   const formattedProducts = dbItems.map((item) => ({
     id: item.item_code,
-    name: item.nama_item,
-    price: item.harga,
-    category: item.kategori || "Miscellaneous",
+    name: item.item_service,
+    price: item.default_rate,
+    category: item.category,
+    billing_type: item.billing_type,
+    notes: item.notes,
     icon: (item.desk as any) || "coffee",
     color: "blue",
   }));
@@ -62,9 +63,9 @@ export default async function Page() {
       status: trx.payment_status,
       total: trx.grand_total, 
       amount: trx.grand_total, 
-      // BARU: Format rincian barang yang siap dicetak ke struk
+      // MENGGUNAKAN NAMA KOLOM BARU SESUAI BLUEPRINT
       items: trx.details.map((d) => ({
-        name: d.item?.nama_item || d.item_code,
+        name: d.item?.item_service || d.item_code,
         qty: d.qty,
         price: d.rate,
         total: d.total

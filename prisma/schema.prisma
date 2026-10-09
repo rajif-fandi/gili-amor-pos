@@ -25,14 +25,17 @@ model Staff {
 
 // 2. DATA MASTER BARANG
 model MasterItem {
-  item_code    String            @id
-  desk         String?
-  kategori     String?
-  nama_item    String
-  billing_type String?
-  harga        Int
-  active       Boolean           @default(true)
-  details      DetailTransaksi[]
+  item_code       String            @id // Akan diisi manual (contoh: RENT-BIKE), tidak di-generate otomatis
+  desk            String?           // Sesuai kolom Desk di blueprint
+  category        String            // CHARGE, RENTAL, ACTIVITY, dll
+  item_service    String            // Menggantikan nama_item
+  billing_type    String            // PER_UNIT, PER_DAY, PER_PAX, PER_TRIP
+  default_rate    Float             // Menggantikan harga
+  active          Boolean           @default(true)
+  notes           String?           // Sesuai kolom Notes di blueprint (contoh: Payment only)
+  
+  // Tambahkan baris wajib ini agar terhubung dengan DetailTransaksi:
+  DetailTransaksi DetailTransaksi[]
 }
 
 // 3. DATA TRANSAKSI UTAMA

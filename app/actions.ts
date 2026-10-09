@@ -25,13 +25,17 @@ export async function saveTransaction(data: {
       const exists = await prisma.masterItem.findUnique({
         where: { item_code: String(item.item_code) }
       });
+      
       if (!exists) {
         await prisma.masterItem.create({
           data: {
             item_code: String(item.item_code),
-            nama_item: `Product ${item.item_code}`,
-            harga: Number(item.rate),
-            kategori: "General",
+            item_service: `Product ${item.item_code}`, // Menggunakan nama kolom baru
+            default_rate: Number(item.rate),           // Menggunakan nama kolom baru
+            category: "CHARGE",                        // Menggunakan nama kolom baru (default fallback)
+            billing_type: "PER_UNIT",                  // Menggunakan nama kolom baru (default fallback)
+            desk: "coffee",
+            notes: "Auto-generated",
             active: true
           }
         });
@@ -71,15 +75,25 @@ export async function saveTransaction(data: {
   }
 }
 
-export async function addMasterItem(data: { nama_item: string; harga: number; kategori: string; desk: string }) {
+export async function addMasterItem(data: { 
+  item_code: string; 
+  desk?: string;
+  category: string; 
+  item_service: string; 
+  billing_type: string;
+  default_rate: number; 
+  notes?: string;
+}) {
   try {
     const newItem = await prisma.masterItem.create({
       data: {
-        item_code: Date.now().toString(),
-        nama_item: data.nama_item,
-        harga: Number(data.harga),
-        kategori: data.kategori,
-        desk: data.desk,
+        item_code: data.item_code,       // Diinput manual dari frontend
+        desk: data.desk || "-",
+        category: data.category,
+        item_service: data.item_service, 
+        billing_type: data.billing_type, 
+        default_rate: Number(data.default_rate),
+        notes: data.notes || "-",
         active: true,
       },
     });
@@ -88,6 +102,10 @@ export async function addMasterItem(data: { nama_item: string; harga: number; ka
     return { success: true, data: newItem };
   } catch (error: any) {
     console.error("DETAIL ERROR PRISMA MASTER ITEM:", error);
+    // Validasi jika Item Code yang diketik sudah pernah dipakai
+    if (error.code === 'P2002') {
+      return { success: false, error: "Item Code sudah digunakan! Silakan buat kode unik lainnya." };
+    }
     return { success: false, error: error.message || "Gagal menambah produk ke database." };
   }
 }

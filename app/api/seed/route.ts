@@ -3,36 +3,35 @@ import { prisma } from "../../db";
 
 export async function GET() {
   try {
-    // Data bersih dan lengkap dengan ikon yang tepat
+    // Data bersih disesuaikan dengan skema database baru
     const seedData = [
       // RECEPTION
-      { item_code: "1", nama_item: "Late Check-out", harga: 150000, kategori: "Room Charges", desk: "clock" },
-      { item_code: "2", nama_item: "Bicycle Rental", harga: 75000, kategori: "Miscellaneous", desk: "bike" },
-      { item_code: "3", nama_item: "Extra Bed", harga: 250000, kategori: "Room Charges", desk: "bed" },
-      { item_code: "4", nama_item: "Breakfast", harga: 120000, kategori: "Room Charges", desk: "coffee" },
-      { item_code: "5", nama_item: "Laundry Service", harga: 85000, kategori: "Miscellaneous", desk: "laundry" },
-      { item_code: "6", nama_item: "Spa Treatment", harga: 350000, kategori: "Miscellaneous", desk: "spa" },
-      { item_code: "7", nama_item: "Airport Transfer", harga: 450000, kategori: "Miscellaneous", desk: "car" },
-      { item_code: "8", nama_item: "Birthday Setup", harga: 300000, kategori: "Room Charges", desk: "cake" },
-      { item_code: "9", nama_item: "Restaurant Deposit", harga: 500000, kategori: "Deposits", desk: "utensils" },
+      { item_code: "REC-LATE", item_service: "Late Check-out", default_rate: 150000, category: "CHARGE", billing_type: "PER_UNIT", desk: "clock" },
+      { item_code: "REC-BED", item_service: "Extra Bed", default_rate: 250000, category: "CHARGE", billing_type: "PER_UNIT", desk: "bed" },
+      { item_code: "REC-BF", item_service: "Breakfast", default_rate: 120000, category: "CHARGE", billing_type: "PER_UNIT", desk: "coffee" },
+      { item_code: "REC-LND", item_service: "Laundry Service", default_rate: 85000, category: "CHARGE", billing_type: "PER_UNIT", desk: "laundry" },
+      { item_code: "REC-SPA", item_service: "Spa Treatment", default_rate: 350000, category: "CHARGE", billing_type: "PER_UNIT", desk: "spa" },
+      { item_code: "REC-TRF", item_service: "Airport Transfer", default_rate: 450000, category: "TRANSFER", billing_type: "PER_TRIP", desk: "car" },
+      { item_code: "REC-BTH", item_service: "Birthday Setup", default_rate: 300000, category: "CHARGE", billing_type: "PER_UNIT", desk: "cake" },
+      { item_code: "REC-DEP", item_service: "Restaurant Deposit", default_rate: 500000, category: "CHARGE", billing_type: "PER_UNIT", desk: "utensils" },
 
       // RENT
-      { item_code: "101", nama_item: "Bicycle", harga: 100000, kategori: "Vehicles", desk: "bike" },
-      { item_code: "102", nama_item: "E-Bike", harga: 150000, kategori: "Vehicles", desk: "rent" },
-      { item_code: "103", nama_item: "Snorkeling Equipment", harga: 75000, kategori: "Equipment", desk: "dive" },
-      { item_code: "104", nama_item: "Go Pro", harga: 250000, kategori: "Equipment", desk: "camera" },
+      { item_code: "RENT-BIKE", item_service: "Bicycle", default_rate: 100000, category: "RENTAL", billing_type: "PER_DAY", desk: "bike" },
+      { item_code: "RENT-EBIKE", item_service: "E-Bike", default_rate: 150000, category: "RENTAL", billing_type: "PER_DAY", desk: "rent" },
+      { item_code: "RENT-SNORK", item_service: "Snorkeling Equipment", default_rate: 75000, category: "RENTAL", billing_type: "PER_DAY", desk: "dive" },
+      { item_code: "RENT-GOPRO", item_service: "Go Pro", default_rate: 250000, category: "RENTAL", billing_type: "PER_DAY", desk: "camera" },
 
       // BOAT
-      { item_code: "201", nama_item: "Diving", harga: 750000, kategori: "Activities", desk: "dive" },
-      { item_code: "202", nama_item: "Fishing", harga: 100000, kategori: "Activities", desk: "fish" },
-      { item_code: "203", nama_item: "Public Boat", harga: 35000, kategori: "Transport", desk: "boat" },
-      { item_code: "204", nama_item: "Speed Boat Fast", harga: 400000, kategori: "Transport", desk: "boat" },
+      { item_code: "BOAT-DIVE", item_service: "Diving", default_rate: 750000, category: "ACTIVITY", billing_type: "PER_PAX", desk: "dive" },
+      { item_code: "BOAT-FISH", item_service: "Fishing", default_rate: 100000, category: "ACTIVITY", billing_type: "PER_TRIP", desk: "fish" },
+      { item_code: "BOAT-PUB", item_service: "Public Boat", default_rate: 35000, category: "TRANSFER", billing_type: "PER_PAX", desk: "boat" },
+      { item_code: "BOAT-FAST", item_service: "Speed Boat Fast", default_rate: 400000, category: "TRANSFER", billing_type: "PER_PAX", desk: "boat" },
 
       // BUY
-      { item_code: "301", nama_item: "Sunscreen", harga: 120000, kategori: "Essentials", desk: "sun" },
-      { item_code: "302", nama_item: "Mineral Water", harga: 20000, kategori: "Essentials", desk: "water" },
-      { item_code: "303", nama_item: "Dry Bag", harga: 150000, kategori: "Essentials", desk: "buy" },
-      { item_code: "304", nama_item: "Gili Amor T-Shirt", harga: 200000, kategori: "Apparel", desk: "shirt" },
+      { item_code: "BUY-SUN", item_service: "Sunscreen", default_rate: 120000, category: "RETAIL", billing_type: "PER_UNIT", desk: "sun" },
+      { item_code: "BUY-WATER", item_service: "Mineral Water", default_rate: 20000, category: "RETAIL", billing_type: "PER_UNIT", desk: "water" },
+      { item_code: "BUY-DRY", item_service: "Dry Bag", default_rate: 150000, category: "RETAIL", billing_type: "PER_UNIT", desk: "buy" },
+      { item_code: "BUY-SHIRT", item_service: "Gili Amor T-Shirt", default_rate: 200000, category: "RETAIL", billing_type: "PER_UNIT", desk: "shirt" },
     ];
 
     // Hapus isi database lama yang berantakan (hapus transaksi dulu agar relasi aman)
@@ -45,7 +44,7 @@ export async function GET() {
       await prisma.masterItem.create({ data: item });
     }
 
-    return NextResponse.json({ success: true, message: "Semua menu berhasil dimasukkan dengan ikon yang tepat!" });
+    return NextResponse.json({ success: true, message: "Semua menu berhasil dimasukkan dengan skema baru!" });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
