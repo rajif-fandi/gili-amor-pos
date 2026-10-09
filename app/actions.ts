@@ -1,6 +1,6 @@
-import { revalidatePath } from 'next/cache';
 "use server";
 
+import { revalidatePath } from 'next/cache';
 import { prisma } from "./db";
 
 export async function saveTransaction(data: {
