@@ -37,9 +37,14 @@ export default function LoginPage() {
     <main style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', fontFamily: 'sans-serif' }}>
       <div style={{ background: '#fff', padding: '40px', borderRadius: '16px', width: '380px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{ display: 'inline-flex', background: '#0f172a', color: '#fff', width: '48px', height: '48px', borderRadius: '12px', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '20px', marginBottom: '12px' }}>
-            GA
-          </div>
+          
+          {/* LOGO GILI AMOR BARU */}
+          <img 
+            src="/logo-gili.png" 
+            alt="Logo Gili Amor" 
+            style={{ width: 'auto', height: '72px', margin: '0 auto 12px auto', display: 'block', objectFit: 'contain' }} 
+          />
+          
           <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>GILI AMOR</h1>
           <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Boutique Resort · Staff Portal</p>
         </div>
@@ -54,7 +59,6 @@ export default function LoginPage() {
               maxLength={6}
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Contoh: 1234" 
               required
               style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', textAlign: 'center', letterSpacing: '4px' }}
             />
