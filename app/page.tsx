@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import POSClientApp from "./pos-client";
+export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   // 1. Ambil data dari database

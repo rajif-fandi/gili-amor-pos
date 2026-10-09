@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 "use server";
 
 import { prisma } from "./db";
@@ -62,6 +63,7 @@ export async function saveTransaction(data: {
       },
     });
 
+    revalidatePath('/');
     return { success: true, data: newTransaction };
   } catch (error: any) {
     console.error("DETAIL ERROR PRISMA TRANSAKSI:", error);
@@ -81,6 +83,8 @@ export async function addMasterItem(data: { nama_item: string; harga: number; ka
         active: true,
       },
     });
+
+    revalidatePath('/');
     return { success: true, data: newItem };
   } catch (error: any) {
     console.error("DETAIL ERROR PRISMA MASTER ITEM:", error);
@@ -96,6 +100,8 @@ export async function deleteMasterItem(itemCode: string) {
       where: { item_code: String(itemCode) },
       data: { active: false },
     });
+
+    revalidatePath('/');
     return { success: true };
   } catch (error: any) {
     try {
@@ -103,6 +109,8 @@ export async function deleteMasterItem(itemCode: string) {
       await prisma.masterItem.delete({
         where: { item_code: String(itemCode) },
       });
+
+      revalidatePath('/');
       return { success: true };
     } catch (err: any) {
       console.error("DETAIL ERROR PRISMA DELETE MASTER:", err);
@@ -123,6 +131,8 @@ export async function addStaff(formData: { nama: string; posisi: string; shift: 
         active: true,
       },
     });
+
+    revalidatePath('/');
     return { success: true, data: newStaff };
   } catch (error: any) {
     console.error("DETAIL ERROR ADD STAFF:", error);
@@ -136,6 +146,8 @@ export async function deleteStaff(staffId: any) {
       where: { staff_id: String(staffId) } as any,
       data: { active: false },
     });
+
+    revalidatePath('/');
     return { success: true };
   } catch (error: any) {
     console.error("DETAIL ERROR PRISMA DELETE STAFF:", error);
@@ -169,6 +181,8 @@ export async function saveShiftClosing(data: {
         staff_id: staffId,
       } as any,
     });
+
+    revalidatePath('/');
     return { success: true, data: newClosing };
   } catch (error: any) {
     console.error("DETAIL ERROR SHIFT CLOSING:", error);
@@ -199,6 +213,8 @@ export async function saveCaseFollowUp(data: {
         assigned_to: data.assigned_to,
       },
     });
+
+    revalidatePath('/');
     return { success: true, data: newCase };
   } catch (error: any) {
     console.error("DETAIL ERROR CASE:", error);
@@ -232,6 +248,8 @@ export async function resolveCase(caseNo: string) {
       where: { case_no: caseNo },
       data: { status: "RESOLVED" },
     });
+
+    revalidatePath('/');
     return { success: true };
   } catch (error: any) {
     console.error("DETAIL ERROR RESOLVE CASE:", error);
