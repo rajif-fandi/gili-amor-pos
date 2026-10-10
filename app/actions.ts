@@ -274,3 +274,33 @@ export async function resolveCase(caseNo: string) {
     return { success: false, error: error.message || "Gagal menyelesaikan tugas." };
   }
 }
+
+export async function updateMasterItem(data: {
+  item_code: string;
+  desk?: string;
+  category: string;
+  item_service: string;
+  billing_type: string;
+  default_rate: number;
+  notes?: string;
+}) {
+  try {
+    const updatedItem = await prisma.masterItem.update({
+      where: { item_code: data.item_code },
+      data: {
+        desk: data.desk || "-",
+        category: data.category,
+        item_service: data.item_service,
+        billing_type: data.billing_type,
+        default_rate: Number(data.default_rate),
+        notes: data.notes || "-",
+      },
+    });
+
+    revalidatePath('/');
+    return { success: true, data: updatedItem };
+  } catch (error: any) {
+    console.error("DETAIL ERROR UPDATE MASTER ITEM:", error);
+    return { success: false, error: error.message || "Gagal memperbarui produk." };
+  }
+}

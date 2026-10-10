@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { saveTransaction, addMasterItem, deleteMasterItem, addStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
+import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 
 type IconName =
@@ -8,10 +8,11 @@ type IconName =
   | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa"
   | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case"
   | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt"
-  | "check" | "printer";
+  | "check" | "printer" | "none";
 
 function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: number; strokeWidth?: number; }) {
-  const paths: Record<IconName, React.ReactNode> = {
+  if (name === "none") return <div style={{ width: size, height: size }} />;
+  const paths: Record<string, React.ReactNode> = {
     home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9M9 20v-7h6v7" /></>,
     reception: <><path d="M4 19h16M6 16h12M7 16v-3a5 5 0 0 1 10 0v3" /><path d="M12 8V5M10 5h4" /></>,
     rent: <><circle cx="7" cy="17" r="3" /><circle cx="17" cy="17" r="3" /><path d="m7 17 4-7 3 7M9 10h6M14 17h3l-3-7-1-2h3" /></>,
@@ -146,39 +147,6 @@ const navItems: { label: string; icon: IconName }[] = [
   { label: "Shift Closing", icon: "shift" },
   { label: "Master Data", icon: "database" },
   { label: "Staff", icon: "staff" },
-];
-
-const products = [
-  { id: 1, name: "Late Check-out", price: 150000, category: "Room Charges", icon: "clock" as IconName, color: "blue" },
-  { id: 2, name: "Bicycle Rental", price: 75000, category: "Miscellaneous", icon: "bike" as IconName, color: "mint" },
-  { id: 3, name: "Extra Bed", price: 250000, category: "Room Charges", icon: "bed" as IconName, color: "sand" },
-  { id: 4, name: "Breakfast", price: 120000, category: "Room Charges", icon: "coffee" as IconName, color: "peach" },
-  { id: 5, name: "Laundry Service", price: 85000, category: "Miscellaneous", icon: "laundry" as IconName, color: "lilac" },
-  { id: 6, name: "Spa Treatment", price: 350000, category: "Miscellaneous", icon: "spa" as IconName, color: "rose" },
-  { id: 7, name: "Airport Transfer", price: 450000, category: "Miscellaneous", icon: "car" as IconName, color: "sky" },
-  { id: 8, name: "Birthday Setup", price: 300000, category: "Room Charges", icon: "cake" as IconName, color: "pink" },
-  { id: 9, name: "Restaurant Deposit", price: 500000, category: "Deposits", icon: "utensils" as IconName, color: "lime" },
-];
-
-const rentProducts = [
-  { id: 101, name: "Bicycle", price: 100000, category: "Vehicles", icon: "bike" as IconName, color: "mint" },
-  { id: 102, name: "E-Bike", price: 150000, category: "Vehicles", icon: "rent" as IconName, color: "blue" },
-  { id: 103, name: "Snorkeling Equipment", price: 75000, category: "Equipment", icon: "dive" as IconName, color: "sky" },
-  { id: 104, name: "Go Pro", price: 250000, category: "Equipment", icon: "camera" as IconName, color: "lilac" },
-];
-
-const boatProducts = [
-  { id: 201, name: "Diving", price: 750000, category: "Activities", icon: "dive" as IconName, color: "blue" },
-  { id: 202, name: "Fishing", price: 100000, category: "Activities", icon: "fish" as IconName, color: "mint" },
-  { id: 203, name: "Public Boat", price: 35000, category: "Transport", icon: "boat" as IconName, color: "sand" },
-  { id: 204, name: "Speed Boat Fast", price: 400000, category: "Transport", icon: "boat" as IconName, color: "sky" },
-];
-
-const buyProducts = [
-  { id: 301, name: "Sunscreen", price: 120000, category: "Essentials", icon: "sun" as IconName, color: "sand" },
-  { id: 302, name: "Mineral Water", price: 20000, category: "Essentials", icon: "water" as IconName, color: "sky" },
-  { id: 303, name: "Dry Bag", price: 150000, category: "Essentials", icon: "buy" as IconName, color: "mint" },
-  { id: 304, name: "Gili Amor T-Shirt", price: 200000, category: "Apparel", icon: "shirt" as IconName, color: "blue" },
 ];
 
 const controlCenterItems = [
@@ -610,23 +578,45 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
 function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   
-  const [formData, setFormData] = useState({ 
+  const defaultForm = { 
     item_code: "", 
     item_service: "", 
     default_rate: "", 
     category: "CHARGE", 
     billing_type: "PER_UNIT",
-    desk: "none",  // <-- Sudah di-set otomatis menjadi "none" (No Logo)
+    desk: "none",
     notes: "" 
-  });
+  };
   
+  const [formData, setFormData] = useState(defaultForm);
   const displayRows = products.length > 0 ? products : [];
+
+  const handleOpenAdd = () => {
+    setEditMode(false);
+    setFormData(defaultForm);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setEditMode(true);
+    setFormData({
+      item_code: item.id,
+      item_service: item.name,
+      default_rate: item.price.toString(),
+      category: item.category,
+      billing_type: item.billing_type,
+      desk: item.icon,
+      notes: item.notes || ""
+    });
+    setIsModalOpen(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const result = await addMasterItem({ 
+    const payload = { 
       item_code: formData.item_code,
       item_service: formData.item_service, 
       default_rate: Number(formData.default_rate), 
@@ -634,7 +624,9 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
       billing_type: formData.billing_type,
       desk: formData.desk,
       notes: formData.notes
-    });
+    };
+    
+    const result = editMode ? await updateMasterItem(payload) : await addMasterItem(payload);
     
     if (result.success) { 
       setIsModalOpen(false); 
@@ -656,16 +648,20 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
     <section className="workspace-screen">
       <header className="workspace-header">
         <div><h2>Master Data</h2></div>
-        <button className="export-button add-case-button" type="button" onClick={() => setIsModalOpen(true)}>Add New Item</button>
+        <button className="export-button add-case-button" type="button" onClick={handleOpenAdd}>Add New Item</button>
       </header>
       
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>Add New Item</h3>
+            <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Item" : "Add New Item"}</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item Code (Manual)</label><input type="text" placeholder="Cth: RENT-BIKE" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Item Code</label>
+                <input type="text" placeholder="Cth: RENT-BIKE" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: editMode ? '#f1f5f9' : '#fff' }} disabled={editMode} />
+                {editMode && <small style={{ color: '#64748b', fontSize: '11px' }}>*Kode tidak bisa diubah saat mode edit.</small>}
+              </div>
               
               <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item / Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
               
@@ -737,7 +733,10 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
                 <td><span className="badge category">{row.category}</span></td>
                 <td>{row.billing_type}</td>
                 <td>{formatIDR(row.price)}</td>
-                <td><button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Delete</button></td>
+                <td style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Edit</button>
+                  <button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -847,31 +846,41 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   };
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
-  const activeProducts = activePage === "Rent" ? rentProducts : activePage === "Boat" ? boatProducts : activePage === "Buy" ? buyProducts : (initialProducts && initialProducts.length > 0 ? initialProducts : products);
-  const categories = activePage === "Rent" ? ["All Items", "Vehicles", "Equipment"] : activePage === "Boat" ? ["All Items", "Activities", "Transport"] : activePage === "Buy" ? ["All Items", "Essentials", "Apparel"] : ["All Items", "CHARGE", "RENTAL", "ACTIVITY", "TRANSFER", "RETAIL"];
+  
+  // LOGIKA DINAMIS MEMBACA DATABASE MASTER DATA
+  const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : [];
+  let activeProducts = allProducts;
+  let categories = ["All Items"];
+
+  if (activePage === "Reception") {
+    activeProducts = allProducts.filter(p => p.category === "CHARGE" || p.category === "TRANSFER");
+    categories = ["All Items", "CHARGE", "TRANSFER"];
+  } else if (activePage === "Rent") {
+    activeProducts = allProducts.filter(p => p.category === "RENTAL");
+    categories = ["All Items", "RENTAL"];
+  } else if (activePage === "Boat") {
+    activeProducts = allProducts.filter(p => p.category === "ACTIVITY" || p.category === "TRANSFER");
+    categories = ["All Items", "ACTIVITY", "TRANSFER"];
+  } else if (activePage === "Buy") {
+    activeProducts = allProducts.filter(p => p.category === "RETAIL");
+    categories = ["All Items", "RETAIL"];
+  }
   
   const visibleProducts = useMemo(() => activeProducts.filter((product) => (activeCategory === "All Items" || product.category === activeCategory) && product.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
   const cartItems = activeProducts.filter((product) => cart[product.id]).map((product) => ({ ...product, quantity: cart[product.id] }));
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discount = 0;
 
-  const updateQuantity = (id: number, change: number) => { setCart((current) => { const next = Math.max(0, (current[id] || 0) + change); const updated = { ...current }; if (next === 0) delete updated[id]; else updated[id] = next; return updated; }); };
+  const updateQuantity = (id: string, change: number) => { setCart((current) => { const next = Math.max(0, (current[id] || 0) + change); const updated = { ...current }; if (next === 0) delete updated[id]; else updated[id] = next; return updated; }); };
 
   return (
     <main className="pos-shell">
       <aside className="navigation">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="brand-mark" style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
-            <img 
-              src="/logo-gili.png" 
-              alt="Gili Amor Logo" 
-              style={{ width: '40px', height: '40px', objectFit: 'contain' }} 
-            />
+            <img src="/logo-gili.png" alt="Gili Amor Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           </div>
-          <div>
-            <strong>GILI AMOR</strong>
-            <small>BOUTIQUE RESORT</small>
-          </div>
+          <div><strong>GILI AMOR</strong><small>BOUTIQUE RESORT</small></div>
         </div>
         <nav className="nav-list">
           <p className="nav-label">WORKSPACE</p>
@@ -890,10 +899,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
               <span style={{ fontSize: '11px' }}>{currentStaff ? `${currentStaff.posisi} • ${currentStaff.shift}` : "Staff"}</span>
             </div>
           </div>
-          <button 
-            onClick={handleLogout} 
-            style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={handleLogout} style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
             Logout
           </button>
         </div>
@@ -917,8 +923,8 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         <div className="catalog-body">
           <div className="product-grid">
             {visibleProducts.map((product) => (
-              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id as number, 1)}>
-                <div className={`product-icon ${product.color}`}><Icon name={product.icon} size={27} strokeWidth={1.6} /></div>
+              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id, 1)}>
+                <div className={`product-icon ${product.color}`}><Icon name={product.icon as IconName} size={27} strokeWidth={1.6} /></div>
                 <div className="product-copy"><h3>{product.name}</h3><p>{product.category}</p></div>
                 <strong>{formatIDR(product.price)}</strong><span className="add-product">+</span>
               </button>
@@ -939,9 +945,9 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         <div className="order-items">
           {cartItems.map((item) => (
             <div className="cart-item" key={item.id}>
-              <div className={`cart-icon ${item.color}`}><Icon name={item.icon} size={19} strokeWidth={1.7} /></div>
+              <div className={`cart-icon ${item.color}`}><Icon name={item.icon as IconName} size={19} strokeWidth={1.7} /></div>
               <div className="cart-item-copy"><h4>{item.name}</h4><p>{formatIDR(item.price)}</p></div>
-              <div className="quantity"><button onClick={() => updateQuantity(item.id as number, -1)}>−</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id as number, 1)}>+</button></div>
+              <div className="quantity"><button onClick={() => updateQuantity(item.id, -1)}>−</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id, 1)}>+</button></div>
             </div>
           ))}
         </div>
