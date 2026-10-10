@@ -246,10 +246,23 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
   const displayRows = transactions.length > 0 ? transactions : [];
+  
+  // 1. Hitung berdasarkan metode pembayaran
   const cashTransactions = displayRows.filter((t) => t.method === "Cash");
   const totalCash = cashTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  
   const cardTransactions = displayRows.filter((t) => t.method === "Card");
   const totalCard = cardTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const roomChargeTransactions = displayRows.filter((t) => t.method === "Room Charge");
+  const totalRoomCharge = roomChargeTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  // 2. Hitung khusus pendapatan dari kategori Transport / Transfer
+  const totalTransport = displayRows.reduce((sum, t) => {
+    const transportItems = (t.items || []).filter((item: any) => item.category === "TRANSFER");
+    const transportTotal = transportItems.reduce((itemSum: number, item: any) => itemSum + (item.total || 0), 0);
+    return sum + transportTotal;
+  }, 0);
 
   return (
     <section className="workspace-screen">
@@ -264,14 +277,26 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
       </header>
 
       <div className="workspace-content">
-        <div className="report-metrics">
-          <article className="report-metric-card">
-            <div className="metric-icon mint"><Icon name="cash" size={23} /></div>
-            <div><p>Total Cash Sales</p><strong>{formatIDR(totalCash)}</strong><span>{cashTransactions.length} transactions</span></div>
+        {/* GRID METRIK DIPERBARUI MENJADI 4 KOTAK */}
+        <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div>
           </article>
-          <article className="report-metric-card">
-            <div className="metric-icon blue"><Icon name="card" size={23} /></div>
-            <div><p>Total Card Sales</p><strong>{formatIDR(totalCard)}</strong><span>{cardTransactions.length} transactions</span></div>
+          
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon blue" style={{ marginBottom: '12px' }}><Icon name="card" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Card</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCard)}</strong></div>
+          </article>
+
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon sand" style={{ marginBottom: '12px' }}><Icon name="room" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Room Charge</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalRoomCharge)}</strong></div>
+          </article>
+
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon sky" style={{ marginBottom: '12px' }}><Icon name="boat" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Transport Revenue</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalTransport)}</strong></div>
           </article>
         </div>
 
@@ -296,9 +321,9 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
                   <tr key={row.receipt || row.id}>
                     <td>{row.time}</td>
                     <td><strong>{row.receipt}</strong></td>
-                    <td>{row.guest}</td>
+                    <td>{row.guest} <br/><small style={{color: '#64748b'}}>Room {row.room}</small></td>
                     <td>
-                      <span className={`payment-badge ${row.method.toLowerCase()}`}>
+                      <span className={`payment-badge ${row.method === "Cash" ? "cash" : row.method === "Card" ? "card" : "room"}`}>
                         <Icon name={row.method === "Cash" ? "cash" : row.method === "Card" ? "card" : "room"} size={14} />
                         {row.method}
                       </span>

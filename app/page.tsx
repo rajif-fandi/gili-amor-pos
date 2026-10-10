@@ -63,12 +63,12 @@ export default async function Page() {
       status: trx.payment_status,
       total: trx.grand_total, 
       amount: trx.grand_total, 
-      // MENGGUNAKAN NAMA KOLOM BARU SESUAI BLUEPRINT
       items: trx.details.map((d) => ({
         name: d.item?.item_service || d.item_code,
         qty: d.qty,
         price: d.rate,
-        total: d.total
+        total: d.total,
+        category: d.item?.category || "CHARGE" // <--- Ini tambahan barunya
       }))
     };
   });
