@@ -733,9 +733,12 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
                 <td><span className="badge category">{row.category}</span></td>
                 <td>{row.billing_type}</td>
                 <td>{formatIDR(row.price)}</td>
-                <td style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Edit</button>
-                  <button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Delete</button>
+                <td>
+                  {/* BUNGKUS DENGAN DIV AGAR TIDAK MELAR */}
+                  <div style={{ display: 'inline-flex', gap: '6px' }}>
+                    <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
+                    <button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
