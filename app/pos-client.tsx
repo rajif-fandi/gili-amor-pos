@@ -247,7 +247,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
 
   const displayRows = transactions.length > 0 ? transactions : [];
   
-  // 1. Hitung berdasarkan metode pembayaran
   const cashTransactions = displayRows.filter((t) => t.method === "Cash");
   const totalCash = cashTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   
@@ -257,7 +256,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const roomChargeTransactions = displayRows.filter((t) => t.method === "Room Charge");
   const totalRoomCharge = roomChargeTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-  // 2. Hitung khusus pendapatan dari kategori Transport / Transfer
   const totalTransport = displayRows.reduce((sum, t) => {
     const transportItems = (t.items || []).filter((item: any) => item.category === "TRANSFER");
     const transportTotal = transportItems.reduce((itemSum: number, item: any) => itemSum + (item.total || 0), 0);
@@ -277,7 +275,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
       </header>
 
       <div className="workspace-content">
-        {/* GRID METRIK DIPERBARUI MENJADI 4 KOTAK */}
         <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div>
@@ -346,6 +343,7 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
 }
 
 function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cases?: any[] }) {
+  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ desk: "Front Office", case_type: "Maintenance", nama_tamu: "", room: "", priority: "Medium", description: "", assigned_to: staffList.length > 0 ? staffList[0].dbId : "" });
 
@@ -354,7 +352,10 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
     if (!formData.assigned_to) return alert("Pilih staf yang bertugas terlebih dahulu!");
     setIsSubmitting(true);
     const result = await saveCaseFollowUp(formData);
-    if (result.success) { alert("Tugas/Case berhasil ditambahkan!"); window.location.reload(); } 
+    if (result.success) { 
+      alert("Tugas/Case berhasil ditambahkan!"); 
+      router.refresh(); // DIGANTI DARI window.location.reload()
+    } 
     else { alert("Gagal menyimpan: " + result.error); }
     setIsSubmitting(false);
   };
@@ -362,7 +363,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
   const handleResolve = async (caseNo: string) => {
     if (confirm("Tandai tugas ini sebagai selesai?")) {
       const result = await resolveCase(caseNo);
-      if (result.success) window.location.reload();
+      if (result.success) router.refresh(); // DIGANTI
       else alert("Gagal menyelesaikan: " + result.error);
     }
   };
@@ -417,6 +418,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
 }
 
 function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
+  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
   const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
   const openingCash = Number(openingCashInput) || 0;
 
@@ -448,7 +450,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
     });
     if (result.success) { 
       alert("Shift closing berhasil disubmit!"); 
-      window.location.reload(); 
+      router.refresh(); // DIGANTI DARI window.location.reload()
     } else { 
       alert("Gagal menyimpan: " + result.error); 
     }
@@ -601,6 +603,7 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
 }
 
 function MasterDataDashboard({ products = [] }: { products?: any[] }) {
+  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -655,7 +658,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
     
     if (result.success) { 
       setIsModalOpen(false); 
-      window.location.reload(); 
+      router.refresh(); // DIGANTI DARI window.location.reload()
     } else { 
       alert("Gagal menyimpan: " + result.error); 
     }
@@ -665,7 +668,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const handleDelete = async (itemCode: string) => {
     if (confirm("Yakin hapus?")) { 
       const result = await deleteMasterItem(itemCode); 
-      if (result.success) window.location.reload(); 
+      if (result.success) router.refresh(); // DIGANTI
     }
   };
 
@@ -759,7 +762,6 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
                 <td>{row.billing_type}</td>
                 <td>{formatIDR(row.price)}</td>
                 <td>
-                  {/* BUNGKUS DENGAN DIV AGAR TIDAK MELAR */}
                   <div style={{ display: 'inline-flex', gap: '6px' }}>
                     <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
                     <button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
@@ -775,6 +777,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
 }
 
 function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
+  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234" });
@@ -784,7 +787,10 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
     e.preventDefault();
     setIsSubmitting(true);
     const result = await addStaff(formData);
-    if (result.success) { alert("Staf berhasil ditambahkan!"); window.location.reload(); } 
+    if (result.success) { 
+      alert("Staf berhasil ditambahkan!"); 
+      router.refresh(); // DIGANTI DARI window.location.reload()
+    } 
     else { alert("Gagal menyimpan: " + result.error); }
     setIsSubmitting(false);
   };
@@ -792,7 +798,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   const handleDelete = async (id: number) => {
     if (confirm("Yakin ingin menghapus staf ini?")) { 
       const result = await deleteStaff(id); 
-      if (result.success) window.location.reload(); 
+      if (result.success) router.refresh(); // DIGANTI
     }
   };
 
@@ -857,7 +863,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   const [saved, setSaved] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
 
-  const router = useRouter();
+  const router = useRouter(); // SUDAH ADA, TINGGAL DIPAKAI
 
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
@@ -875,7 +881,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
   
-  // LOGIKA DINAMIS MEMBACA DATABASE MASTER DATA
   const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : [];
   let activeProducts = allProducts;
   let categories = ["All Items"];
@@ -1011,7 +1016,14 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
               }) 
             };
             const result = await saveTransaction(finalOrderData as any);
-            if (result.success) { setSaved(true); setCart({}); window.setTimeout(() => setSaved(false), 1800); window.location.reload(); } else { alert("Gagal menyimpan: " + result.error); }
+            if (result.success) { 
+              setSaved(true); 
+              setCart({}); 
+              window.setTimeout(() => setSaved(false), 1800); 
+              router.refresh(); // DIGANTI DARI window.location.reload()
+            } else { 
+              alert("Gagal menyimpan: " + result.error); 
+            }
           }}>
             {saved ? <><Icon name="check" size={22} strokeWidth={2.5} /> Transaction Saved</> : <>Save Transaction <span>{formatIDR(subtotal - discount)}</span></>}
           </button>
