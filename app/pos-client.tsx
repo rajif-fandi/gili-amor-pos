@@ -51,38 +51,52 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: n
 
 const formatIDR = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
-// --- KOMPONEN LAINNYA TETAP ---
 function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () => void }) {
   if (!transaction) return null;
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '380px', color: '#0f172a', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>Receipt Preview</h3><button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-receipt, #printable-receipt * { visibility: visible; }
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 5mm; font-family: monospace; color: #000; }
+          .hide-on-print { display: none !important; }
+        }
+      `}</style>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '380px', color: '#0f172a', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0 }}>Receipt Preview</h3><button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
+          </div>
+          <div id="printable-receipt" style={{ flex: 1, overflowY: 'auto', border: '1px dashed #ccc', padding: '20px', backgroundColor: '#fafafa', fontSize: '13px' }}>
+            <div style={{ textAlign: 'center', borderBottom: '1px dashed #666', paddingBottom: '12px', marginBottom: '12px' }}>
+              <strong style={{ fontSize: '18px' }}>GILI AMOR</strong><div style={{ fontSize: '12px' }}>Boutique Resort</div>
+            </div>
+            <div style={{ marginBottom: '12px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Receipt No:</span> <span>{transaction.receipt}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Date:</span> <span>{transaction.date}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Guest:</span> <span>{transaction.guest}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Method:</span> <span>{transaction.method}</span></div>
+              {transaction.bookingSource && transaction.bookingSource !== "-" && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Source:</span> <span>{transaction.bookingSource}</span></div>}
+            </div>
+            <div style={{ borderTop: '1px dashed #666', borderBottom: '1px dashed #666', padding: '12px 0', marginBottom: '12px' }}>
+              {transaction.items && transaction.items.map((item: any, idx: number) => (
+                <div key={idx} style={{ marginBottom: '8px' }}>
+                  <div style={{ fontWeight: 600 }}>{item.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{item.qty} x {item.price.toLocaleString("id-ID")}</span><span>{item.total.toLocaleString("id-ID")}</span></div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginBottom: '24px' }}><span>TOTAL</span><span>{formatIDR(transaction.total)}</span></div>
+            <div style={{ textAlign: 'center', fontSize: '11px', marginTop: '20px' }}><p>Thank you for choosing Gili Amor!</p></div>
+          </div>
+          <div className="hide-on-print" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>Close</button>
+            <button onClick={() => window.print()} style={{ flex: 2, padding: '10px', background: '#10b981', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Icon name="printer" size={16} /> Print</button>
+          </div>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', border: '1px dashed #ccc', padding: '20px', backgroundColor: '#fafafa', fontFamily: 'monospace', fontSize: '13px' }}>
-          <div style={{ textAlign: 'center', borderBottom: '1px dashed #666', paddingBottom: '12px', marginBottom: '12px' }}>
-            <strong style={{ fontSize: '18px' }}>GILI AMOR</strong><div style={{ fontSize: '12px' }}>Boutique Resort</div>
-          </div>
-          <div style={{ marginBottom: '12px', fontSize: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>No:</span> <span>{transaction.receipt}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Guest:</span> <span>{transaction.guest}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Method:</span> <span>{transaction.method}</span></div>
-            {transaction.bookingSource !== "-" && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Source:</span> <span>{transaction.bookingSource}</span></div>}
-          </div>
-          <div style={{ borderTop: '1px dashed #666', borderBottom: '1px dashed #666', padding: '12px 0', marginBottom: '12px' }}>
-            {transaction.items && transaction.items.map((item: any, idx: number) => (
-              <div key={idx} style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 600 }}>{item.name}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{item.qty} x {item.price.toLocaleString("id-ID")}</span><span>{item.total.toLocaleString("id-ID")}</span></div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginBottom: '24px' }}><span>TOTAL</span><span>{formatIDR(transaction.total)}</span></div>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}><button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>Close</button></div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -135,7 +149,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
     <section className="workspace-screen">
       <header className="workspace-header"><div><p className="eyebrow">ANALYTICS</p><h1>Manager Dashboard</h1></div></header>
       <div className="workspace-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
-        
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '320px' }}>
             <h3 style={{ marginBottom: '20px', fontSize: '15px' }}>Revenue Trend (7 Days)</h3>
@@ -153,7 +166,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
               </BarChart>
             </ResponsiveContainer>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <h3 style={{ marginBottom: '20px', fontSize: '15px', textAlign: 'center' }}>Revenue Distribution</h3>
@@ -167,7 +179,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            
             <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '300px' }}>
               <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Today's In-House Guest</h3>
               {todaysGuests.length > 0 ? (
@@ -178,7 +189,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
             </div>
           </div>
         </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '350px', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="clock" size={18} /> Agenda & Task (OPEN)</h3>
@@ -191,7 +201,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
             )) : <p style={{ fontSize: '13px', color: '#64748b' }}>Semua tugas selesai.</p>}
           </div>
         </div>
-
       </div>
     </section>
   );
@@ -224,10 +233,262 @@ function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: strin
                   <strong>{trx.guest} (Room {trx.room})</strong>
                   <span style={{ fontSize: '11px' }}>
                     {trx.items?.map((i:any) => `${i.qty}x ${i.name}`).join(', ')} 
-                    {trx.notes !== "-" && ` | Note: ${trx.notes}`}
+                    {trx.notes && trx.notes !== "-" && ` | Note: ${trx.notes}`}
                   </span>
                 </div>
                 <strong className="activity-amount">{formatIDR(trx.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+  
+  const totalCash = displayRows.filter((t) => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalCard = displayRows.filter((t) => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalRoomCharge = displayRows.filter((t) => t.method === "Room Charge").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalTransport = displayRows.reduce((sum, t) => {
+    const transportItems = (t.items || []).filter((item: any) => item.category === "TRANSFER");
+    return sum + transportItems.reduce((itemSum: number, item: any) => itemSum + (item.total || 0), 0);
+  }, 0);
+
+  return (
+    <section className="workspace-screen">
+      {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+      <header className="workspace-header reports-header">
+        <div><p className="eyebrow">FINANCIAL OVERVIEW</p><h1>Daily Payment Report</h1><p className="header-subtitle">Review and reconcile today's guest payments.</p></div>
+      </header>
+      <div className="workspace-content">
+        <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div>
+          </article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon blue" style={{ marginBottom: '12px' }}><Icon name="card" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Card</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCard)}</strong></div>
+          </article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon sand" style={{ marginBottom: '12px' }}><Icon name="room" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Room Charge</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalRoomCharge)}</strong></div>
+          </article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <div className="metric-icon sky" style={{ marginBottom: '12px' }}><Icon name="boat" size={23} /></div>
+            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Transport Revenue</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalTransport)}</strong></div>
+          </article>
+        </div>
+        <section className="report-table-panel">
+          <div className="panel-heading"><div><h2>Payment Transactions (Today)</h2></div></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Receipt No</th><th>Guest Name</th><th>Method</th><th>Total Amount</th><th>Action</th></tr></thead>
+              <tbody>
+                {displayRows.map((row) => (
+                  <tr key={row.receipt || row.id}>
+                    <td>{row.time}</td><td><strong>{row.receipt}</strong></td><td>{row.guest} <br/><small>Room {row.room}</small></td>
+                    <td><span className={`payment-badge ${row.method === "Cash" ? "cash" : "card"}`}>{row.method}</span></td>
+                    <td><strong>{formatIDR(row.amount)}</strong></td>
+                    <td><button onClick={() => setSelectedReceipt(row)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e2e8f0', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}><Icon name="printer" size={14} /> Print</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cases?: any[] }) {
+  const router = useRouter(); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ desk: "Front Office", case_type: "Maintenance", nama_tamu: "", room: "", priority: "Medium", description: "", assigned_to: staffList.length > 0 ? staffList[0].dbId : "" });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.assigned_to) return alert("Pilih staf yang bertugas!");
+    setIsSubmitting(true);
+    const result = await saveCaseFollowUp(formData);
+    if (result.success) { alert("Tugas berhasil ditambahkan!"); router.refresh(); } 
+    else alert("Gagal menyimpan: " + result.error);
+    setIsSubmitting(false);
+  };
+
+  const handleResolve = async (caseNo: string) => {
+    if (confirm("Tandai tugas ini selesai?")) {
+      const result = await resolveCase(caseNo);
+      if (result.success) router.refresh();
+    }
+  };
+
+  return (
+    <section className="workspace-screen">
+      <header className="workspace-header"><div><p className="eyebrow">OPERATIONS</p><h1>Case & Follow-up</h1></div></header>
+      <div className="workspace-content" style={{ display: 'grid', gap: '24px', gridTemplateColumns: '1fr 2fr', alignItems: 'start' }}>
+        <section className="report-table-panel" style={{ padding: '24px' }}>
+          <h2>Buat Tugas Baru</h2>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Tipe Case</span><select value={formData.case_type} onChange={(e) => setFormData({...formData, case_type: e.target.value})} style={{ width: '100%', padding: '8px' }}><option value="Maintenance">Maintenance</option><option value="Housekeeping">Housekeeping</option><option value="Room Service">Room Service</option><option value="Transport">Transport</option></select></label>
+            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Nama Tamu / Room</span><div style={{ display: 'flex', gap: '8px' }}><input placeholder="Nama Tamu" required value={formData.nama_tamu} onChange={(e) => setFormData({...formData, nama_tamu: e.target.value})} style={{ flex: 1, padding: '8px' }} /><input placeholder="Room" required value={formData.room} onChange={(e) => setFormData({...formData, room: e.target.value})} style={{ width: '80px', padding: '8px' }} /></div></label>
+            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Prioritas</span><select value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})} style={{ width: '100%', padding: '8px' }}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High (Urgent)</option></select></label>
+            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Tugaskan Kepada</span><select value={formData.assigned_to} onChange={(e) => setFormData({...formData, assigned_to: e.target.value})} style={{ width: '100%', padding: '8px' }}>{staffList.map(staff => (<option key={staff.dbId} value={staff.dbId}>{staff.name}</option>))}</select></label>
+            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Deskripsi</span><textarea required rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} style={{ width: '100%', padding: '8px' }} /></label>
+            <button className="submit-shift-button" type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan Tugas"}</button>
+          </form>
+        </section>
+        <section className="report-table-panel">
+          <div className="panel-heading"><h2>Daftar Tugas</h2></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>No Case</th><th>Kategori</th><th>Kamar & Tamu</th><th>Ditugaskan Ke</th><th>Status</th></tr></thead>
+              <tbody>
+                {cases.map((c: any) => (
+                  <tr key={c.case_no} style={{ opacity: c.status === 'RESOLVED' ? 0.6 : 1 }}>
+                    <td><strong>{c.case_no}</strong></td>
+                    <td>{c.case_type} <br/><small style={{color: c.priority === 'High' ? 'red' : 'gray'}}>{c.priority} Priority</small></td>
+                    <td>{c.room} - {c.nama_tamu} <br/><small>{c.description}</small></td>
+                    <td>{c.staff_name}</td>
+                    <td>
+                      {c.status === 'OPEN' ? (
+                        <button onClick={() => handleResolve(c.case_no)} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Resolve</button>
+                      ) : <span className="payment-badge cash">RESOLVED</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
+  const router = useRouter(); 
+  const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
+  const openingCash = Number(openingCashInput) || 0;
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+  
+  const cashSales = displayRows.filter(t => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const cardSales = displayRows.filter(t => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const expectedCash = openingCash + cashSales;
+  const [actualCash, setActualCash] = useState(expectedCash.toString());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const actualValue = Number(actualCash) || 0;
+  const variance = actualValue - expectedCash;
+
+  useEffect(() => { setActualCash(expectedCash.toString()); }, [expectedCash]);
+
+  const handleSubmitClosing = async () => {
+    setIsSubmitting(true);
+    const result = await saveShiftClosing({ openingCash, cashSales, cardSales, expectedCash, actualCash: actualValue, variance, shift: currentStaff ? currentStaff.shift : "Morning" });
+    if (result.success) { alert("Shift closing berhasil disubmit!"); router.refresh(); } 
+    else alert("Gagal menyimpan: " + result.error); 
+    setIsSubmitting(false);
+  };
+
+  return (
+    <section className="workspace-screen">
+      <header className="workspace-header"><div><p className="eyebrow">FRONT OFFICE</p><h1>Cash Reconciliation</h1></div></header>
+      <div className="workspace-content shift-content">
+        <div className="shift-summary">
+          {[{ label: "Opening Cash", value: openingCash, icon: "cash" as IconName, color: "sand" }, { label: "Total Cash Sales", value: cashSales, icon: "cash" as IconName, color: "mint" }, { label: "Total Card Sales", value: cardSales, icon: "card" as IconName, color: "blue" }].map((item) => (
+            <article className="shift-summary-card" key={item.label}><div className={`metric-icon ${item.color}`}><Icon name={item.icon} size={22} /></div><p>{item.label}</p><strong>{formatIDR(item.value)}</strong></article>
+          ))}
+        </div>
+        <section className="reconciliation-panel">
+          <div className="reconciliation-heading"><div><h2>Cash Reconciliation</h2></div></div>
+          <div className="reconciliation-form">
+            <label><span>Opening Cash (Modal)</span><div className="currency-input"><span>Rp</span><input inputMode="numeric" onChange={(e) => setOpeningCashInput(e.target.value.replace(/\D/g, ""))} value={openingCashInput} /></div></label>
+            <label><span>Expected Cash</span><div className="currency-input readonly"><span>Rp</span><input readOnly value={expectedCash.toLocaleString("id-ID")} /></div></label>
+            <label><span>Actual Cash Counted</span><div className="currency-input"><span>Rp</span><input inputMode="numeric" onChange={(e) => setActualCash(e.target.value.replace(/\D/g, ""))} value={actualCash} /></div></label>
+            <div className={`variance-field ${variance === 0 ? "balanced" : variance > 0 ? "over" : "short"}`}>
+              <div><span>Variance</span><small>{variance === 0 ? "Cash drawer is balanced" : variance > 0 ? "Cash over expected" : "Cash short"}</small></div>
+              <strong>{variance > 0 ? "+" : ""}{formatIDR(variance)}</strong>
+            </div>
+            <button className="submit-shift-button" onClick={handleSubmitClosing} disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit Shift Closing"}</button>
+          </div>
+        </section>
+        <section className="report-table-panel" style={{ marginTop: '24px' }}>
+          <div className="panel-heading"><h2>Shift Closing History</h2></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Close No</th><th>Waktu</th><th>Expected Cash</th><th>Actual Cash</th><th>Variance</th></tr></thead>
+              <tbody>
+                {shiftClosings.map((c: any) => (<tr key={c.close_no}><td><strong>{c.close_no}</strong></td><td>{new Date(c.tanggal).toLocaleString("id-ID")}</td><td>{formatIDR(c.expected_cash)}</td><td>{formatIDR(c.actual_cash)}</td><td>{c.variance}</td></tr>))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const displayRows = transactions.filter(row => row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  return (
+    <section className="workspace-screen">
+      {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+      <header className="workspace-header database-header"><div><p className="eyebrow">TRANSACTIONS</p><h1>Payment Database</h1></div></header>
+      <div className="workspace-content">
+        <section className="report-table-panel">
+          <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>All Transactions</h2>
+            <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari tamu atau struk..." type="search" value={searchQuery} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Trx ID</th><th>Date</th><th>Guest Name</th><th>Method</th><th>Total</th><th>Action</th></tr></thead>
+              <tbody>
+                {displayRows.map((row) => (
+                  <tr key={row.id}>
+                    <td><strong>{row.id}</strong></td><td>{row.date}</td><td>{row.guest}</td>
+                    <td><span className={`payment-badge ${row.method.toLowerCase()}`}>{row.method}</span></td>
+                    <td><strong>{formatIDR(row.total)}</strong></td>
+                    <td><button onClick={() => setSelectedReceipt(row)} style={{ padding: '6px 12px', cursor: 'pointer' }}>Print</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
+  return (
+    <section className="workspace-screen">
+      <header className="workspace-header"><div><p className="eyebrow">ANALYTICS</p><h1>Operational Case Report</h1></div></header>
+      <div className="workspace-content">
+        <div className="analytics-metrics">
+          <article><div><p>Total Cases</p><strong>{cases.length}</strong></div></article>
+          <article><div><p>Resolved</p><strong>{cases.filter((c: any) => c.status !== "OPEN").length}</strong></div></article>
+        </div>
+        <section className="analytics-panel resolved-panel">
+          <div className="panel-heading"><h2>Recent Cases</h2></div>
+          <div className="resolved-list">
+            {cases.map((item: any) => (
+              <div className="resolved-row" key={item.case_no}>
+                <div><strong>{item.case_type}</strong><p>{item.case_no} · Room {item.room} · Staf: {item.staff_name}</p></div>
+                <span className={`payment-badge ${item.status === 'OPEN' ? 'room' : 'cash'}`}>{item.status}</span>
               </div>
             ))}
           </div>
@@ -255,7 +516,6 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   return (
     <section className="workspace-screen">
       <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Item</button></header>
-      
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a' }}>
@@ -276,7 +536,6 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
           </div>
         </div>
       )}
-      
       <div className="workspace-content">
         <table className="data-table">
           <thead><tr><th>ITEM</th><th>CATEGORY</th><th>RATE</th><th>ACTION</th></tr></thead>
@@ -285,10 +544,8 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
               <tr key={row.id}>
                 <td><strong>{row.id}</strong><br/>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td>
                 <td>
-                  <div style={{ display: 'inline-flex', gap: '6px' }}>
-                    <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon, notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Edit</button>
-                    <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
-                  </div>
+                  <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon, notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', marginRight: '4px' }}>Edit</button>
+                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -349,8 +606,6 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   );
 }
 
-// ... SISA KOMPONEN LAINNYA BISA DIBIARKAN SAMA (ReportsDashboard, CasesDashboard, ShiftClosingDashboard, PaymentDatabaseDashboard) ...
-
 export default function POSClientApp({ initialProducts, initialStaff, initialTransactions, initialShiftClosings, initialCases = [] }: { initialProducts?: any[]; initialStaff?: any[]; initialTransactions?: any[]; initialShiftClosings?: any[]; initialCases?: any[]; }) {
   const router = useRouter(); 
   const [currentStaff, setCurrentStaff] = useState<any>(null);
@@ -362,7 +617,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
     else router.push("/login");
   }, [router]);
 
-  const isAdmin = currentStaff?.role === "Admin" || currentStaff?.posisi.toLowerCase().includes("admin");
+  const isAdmin = currentStaff?.role === "Admin" || currentStaff?.posisi?.toLowerCase().includes("admin");
   const allowedNavs = navItems.filter(item => item.roles.includes(isAdmin ? "Admin" : "Kasir"));
 
   const [activeCategory, setActiveCategory] = useState("All Items");
@@ -370,7 +625,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   const [payment, setPayment] = useState("Room Charge");
   const [guestName, setGuestName] = useState(""); 
   
-  // CART SEKARANG MENYIMPAN QTY DAN CUSTOM PRICE (Untuk fitur edit harga kamar)
   const [cart, setCart] = useState<Record<string, {qty: number, price: number}>>({});
   const [bookingData, setBookingData] = useState({ arrival: "", checkout: "", source: "Direct", notes: "" });
 
@@ -435,10 +689,13 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
       {activePage === "Launchpad" && <HomeDashboard onLaunch={(page) => setActivePage(page)} transactions={initialTransactions} />}
       {activePage === "Dashboard" && isAdmin && <DashboardAnalytics transactions={initialTransactions} cases={initialCases} />}
+      {activePage === "Reports" && isAdmin && <ReportsDashboard transactions={initialTransactions} />}
+      {activePage === "Case / Follow-up" && <CasesDashboard staffList={initialStaff} cases={initialCases} />}
+      {activePage === "Shift Closing" && <ShiftClosingDashboard transactions={initialTransactions} shiftClosings={initialShiftClosings} currentStaff={currentStaff} />}
+      {activePage === "Payment Database" && isAdmin && <PaymentDatabaseDashboard transactions={initialTransactions} />}
+      {activePage === "Case Report" && isAdmin && <CaseReportDashboard cases={initialCases} />}
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
-
-      {/* Render komponen lain seperti biasa... */}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">
@@ -478,7 +735,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
                 </div>
                 <div className="quantity"><button onClick={() => updateQuantity(item.id, -1, item.price)}>−</button><span>{item.qty}</span><button onClick={() => updateQuantity(item.id, 1, item.price)}>+</button></div>
               </div>
-              {/* FITUR EDIT HARGA (Report Guest In House / Custom Rate) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', width: '100%' }}>
                 <span style={{ fontSize: '11px', color: '#64748b' }}>Rate: Rp</span>
                 <input type="number" value={item.price} onChange={(e) => handleCustomPrice(item.id, Number(e.target.value))} style={{ padding: '4px', fontSize: '12px', border: '1px solid #e2e8f0', borderRadius: '4px', width: '100px' }} />
@@ -487,7 +743,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           ))}
         </div>
 
-        {/* ADVANCED BOOKING DETAILS (Tampil jika ada Transfer/Deposit) */}
         {showAdvancedBooking && cartItems.length > 0 && (
           <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
             <h4 style={{ fontSize: '12px', marginBottom: '10px', color: '#0f172a' }}>Booking & Travel Details</h4>

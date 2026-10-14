@@ -41,7 +41,8 @@ export default async function Page() {
     name: s.nama,
     position: s.posisi,
     shift: s.shift || "Morning",
-    pin: s.pin, // <-- Data PIN untuk form Edit
+    pin: s.pin,
+    role: s.role || "Kasir",
     status: s.active ? "Active" : "On Leave",
     color: "mint",
   }));
