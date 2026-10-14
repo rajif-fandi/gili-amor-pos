@@ -327,7 +327,7 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
               <YAxis tickFormatter={(val) => `Rp ${val.toLocaleString('id-ID')}`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} width={90} />
-              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: number) => `Rp ${value.toLocaleString('id-ID')}`} />
+              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar dataKey="Cash" stackId="a" fill="#10b981" />
               <Bar dataKey="Card" stackId="a" fill="#3b82f6" />
