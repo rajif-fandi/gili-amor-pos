@@ -647,7 +647,11 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   });
   
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const showAdvancedBooking = cartItems.some(item => activeProducts.find(p => String(p.id) === item.id)?.category !== "RETAIL");
+  // Logika baru: Hanya muncul jika nama barang ada unsur transfer, boat, airport, atau deposit
+  const showAdvancedBooking = cartItems.some(item => {
+    const nameStr = item.name.toLowerCase();
+    return nameStr.includes("airport") || nameStr.includes("transfer") || nameStr.includes("boat") || nameStr.includes("deposit");
+  });
 
   const updateQuantity = (id: string, change: number, defaultPrice: number) => { 
     setCart((curr) => { 
@@ -716,8 +720,9 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </div>
       </section>}
 
-      {isPosPage && <aside className="order-panel" style={{ overflowY: 'auto' }}>
-        <div className="order-top">
+      {/* --- BAGIAN INI SUDAH DIPERBAIKI LAYOUT DAN SCROLL-NYA --- */}
+      {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div className="order-top" style={{ flexShrink: 0 }}>
           <div className="order-title"><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <label><span>Guest Name</span><input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Enter guest name" /></label>
@@ -725,7 +730,8 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           </div>
         </div>
 
-        <div className="order-items">
+        {/* Kotak daftar belanjaan (Bisa di-scroll tersendiri) */}
+        <div className="order-items" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
           {cartItems.map((item) => (
             <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -743,53 +749,56 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           ))}
         </div>
 
-        {showAdvancedBooking && cartItems.length > 0 && (
-          <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-            <h4 style={{ fontSize: '12px', marginBottom: '10px', color: '#0f172a' }}>Booking & Travel Details</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '11px' }}>Arrival Date <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
-              <label style={{ fontSize: '11px' }}>Checkout Date <input type="date" value={bookingData.checkout} onChange={e => setBookingData({...bookingData, checkout: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
-              <label style={{ fontSize: '11px' }}>Booking Source 
-                <select value={bookingData.source} onChange={e => setBookingData({...bookingData, source: e.target.value})} style={{ width: '100%', padding: '6px' }}>
-                  <option value="Direct">Direct</option><option value="Via Telepon">Via Telepon</option><option value="OTA / Traveloka">OTA / Traveloka</option><option value="Agoda">Agoda</option>
-                </select>
-              </label>
-              <label style={{ fontSize: '11px' }}>Notes (e.g. DP 50%) <input type="text" value={bookingData.notes} onChange={e => setBookingData({...bookingData, notes: e.target.value})} style={{ width: '100%', padding: '6px' }} placeholder="DP 500rb..." /></label>
+        {/* Kotak bawah (Booking & Checkout) yang menempel kaku di bawah */}
+        <div style={{ flexShrink: 0 }}>
+          {showAdvancedBooking && cartItems.length > 0 && (
+            <div style={{ padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+              <h4 style={{ fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>Booking & Travel Details</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <label style={{ fontSize: '11px' }}>Arrival <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
+                <label style={{ fontSize: '11px' }}>Checkout <input type="date" value={bookingData.checkout} onChange={e => setBookingData({...bookingData, checkout: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
+                <label style={{ fontSize: '11px', gridColumn: '1 / -1' }}>Booking Source 
+                  <select value={bookingData.source} onChange={e => setBookingData({...bookingData, source: e.target.value})} style={{ width: '100%', padding: '6px' }}>
+                    <option value="Direct">Direct</option><option value="Via Telepon">Via Telepon</option><option value="OTA / Traveloka">OTA / Traveloka</option><option value="Agoda">Agoda</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: '11px', gridColumn: '1 / -1' }}>Notes (e.g. DP 50%) <input type="text" value={bookingData.notes} onChange={e => setBookingData({...bookingData, notes: e.target.value})} style={{ width: '100%', padding: '6px' }} placeholder="DP 500rb..." /></label>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="checkout">
-          <div className="summary"><div className="grand-total"><span>Grand Total</span><strong>{formatIDR(subtotal)}</strong></div></div>
-          <div className="payment">
-            <p>Payment Method</p>
-            <div className="payment-options" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
-                <button className={payment === method.label ? "active" : ""} key={method.label} onClick={() => setPayment(method.label)}><Icon name={method.icon} size={16} /><span style={{ fontSize: '11px' }}>{method.label}</span></button>
-              ))}
+          <div className="checkout">
+            <div className="summary"><div className="grand-total"><span>Grand Total</span><strong>{formatIDR(subtotal)}</strong></div></div>
+            <div className="payment">
+              <p>Payment Method</p>
+              <div className="payment-options" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
+                  <button className={payment === method.label ? "active" : ""} key={method.label} onClick={() => setPayment(method.label)}><Icon name={method.icon} size={16} /><span style={{ fontSize: '11px' }}>{method.label}</span></button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <button disabled={cartItems.length === 0} onClick={async () => {
-            const roomInputValue = (document.getElementById("room-input") as HTMLInputElement)?.value || "Walk-in";
-            const finalOrderData = { 
-              guestName: guestName || "Walk-in Guest", 
-              paymentMethod: payment, 
-              totalAmount: subtotal, 
-              room: roomInputValue,
-              staffId: currentStaff?.dbId, 
-              arrivalDate: bookingData.arrival,
-              checkoutDate: bookingData.checkout,
-              bookingSource: bookingData.source,
-              paymentNotes: bookingData.notes,
-              items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
-            };
-            const result = await saveTransaction(finalOrderData);
-            if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); router.refresh(); } 
-            else alert("Gagal menyimpan: " + result.error);
-          }}>
-            Save Transaction <span>{formatIDR(subtotal)}</span>
-          </button>
+            <button disabled={cartItems.length === 0} onClick={async () => {
+              const roomInputValue = (document.getElementById("room-input") as HTMLInputElement)?.value || "Walk-in";
+              const finalOrderData = { 
+                guestName: guestName || "Walk-in Guest", 
+                paymentMethod: payment, 
+                totalAmount: subtotal, 
+                room: roomInputValue,
+                staffId: currentStaff?.dbId, 
+                arrivalDate: bookingData.arrival,
+                checkoutDate: bookingData.checkout,
+                bookingSource: bookingData.source,
+                paymentNotes: bookingData.notes,
+                items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
+              };
+              const result = await saveTransaction(finalOrderData);
+              if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); router.refresh(); } 
+              else alert("Gagal menyimpan: " + result.error);
+            }}>
+              Save Transaction <span>{formatIDR(subtotal)}</span>
+            </button>
+          </div>
         </div>
       </aside>}
     </main>
