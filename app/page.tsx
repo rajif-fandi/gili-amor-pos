@@ -3,7 +3,6 @@ import POSClientApp from "./pos-client";
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  // 1. Ambil data dari database
   const dbItems = await prisma.masterItem.findMany({ where: { active: true } });
   const dbStaff = await prisma.staff.findMany({ where: { active: true } });
   
@@ -25,7 +24,6 @@ export default async function Page() {
     include: { staff: true } 
   });
 
-  // 2. MENGGUNAKAN NAMA KOLOM BARU SESUAI BLUEPRINT
   const formattedProducts = dbItems.map((item) => ({
     id: item.item_code,
     name: item.item_service,
@@ -43,6 +41,7 @@ export default async function Page() {
     name: s.nama,
     position: s.posisi,
     shift: s.shift || "Morning",
+    pin: s.pin, // <-- Data PIN untuk form Edit
     status: s.active ? "Active" : "On Leave",
     color: "mint",
   }));
@@ -56,6 +55,7 @@ export default async function Page() {
       id: trx.no_transaksi, 
       receipt: trx.no_transaksi, 
       date: `${dateStr}, ${timeStr}`,
+      rawDate: dateObj.toISOString(), // <-- Data Tanggal asli untuk filter
       time: timeStr,
       guest: trx.nama_tamu || "Walk-in Guest",
       room: trx.room || "-",
@@ -68,7 +68,7 @@ export default async function Page() {
         qty: d.qty,
         price: d.rate,
         total: d.total,
-        category: d.item?.category || "CHARGE" // <--- Ini tambahan barunya
+        category: d.item?.category || "CHARGE" 
       }))
     };
   });
@@ -84,7 +84,6 @@ export default async function Page() {
     staff_name: c.staff?.nama || "Tidak diketahui",
   }));
 
-  // 3. Kirim semua data ke aplikasi POS
   return (
     <POSClientApp 
       initialProducts={formattedProducts} 

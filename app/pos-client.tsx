@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
+import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 
 type IconName =
@@ -164,7 +164,6 @@ const controlCenterItems = [
 ];
 
 function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
-  // FILTER HANYA HARI INI
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
 
@@ -249,7 +248,6 @@ function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: strin
 function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
-  // FILTER HANYA HARI INI
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
   
@@ -354,7 +352,7 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
 }
 
 function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cases?: any[] }) {
-  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
+  const router = useRouter(); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ desk: "Front Office", case_type: "Maintenance", nama_tamu: "", room: "", priority: "Medium", description: "", assigned_to: staffList.length > 0 ? staffList[0].dbId : "" });
 
@@ -365,7 +363,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
     const result = await saveCaseFollowUp(formData);
     if (result.success) { 
       alert("Tugas/Case berhasil ditambahkan!"); 
-      router.refresh(); // DIGANTI DARI window.location.reload()
+      router.refresh(); 
     } 
     else { alert("Gagal menyimpan: " + result.error); }
     setIsSubmitting(false);
@@ -374,7 +372,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
   const handleResolve = async (caseNo: string) => {
     if (confirm("Tandai tugas ini sebagai selesai?")) {
       const result = await resolveCase(caseNo);
-      if (result.success) router.refresh(); // DIGANTI
+      if (result.success) router.refresh();
       else alert("Gagal menyelesaikan: " + result.error);
     }
   };
@@ -429,11 +427,10 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
 }
 
 function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
-  const router = useRouter();
+  const router = useRouter(); 
   const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
   const openingCash = Number(openingCashInput) || 0;
 
-  // FILTER HANYA HARI INI
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
   
@@ -532,7 +529,35 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
 
 function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
-  const displayRows = transactions.length > 0 ? transactions : [];
+  
+  // STATE BARU UNTUK FILTER & PENCARIAN
+  const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  
+  // LOGIKA FILTER
+  const displayRows = transactions.filter((row) => {
+    // 1. Pencarian Teks
+    const matchSearch = row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        row.receipt.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // 2. Filter Rentang Tanggal
+    let matchDate = true;
+    if (startDate || endDate) {
+      const rowDate = new Date(row.rawDate); 
+      if (startDate) {
+        const sDate = new Date(startDate);
+        sDate.setHours(0, 0, 0, 0);
+        if (rowDate < sDate) matchDate = false;
+      }
+      if (endDate) {
+        const eDate = new Date(endDate);
+        eDate.setHours(23, 59, 59, 999);
+        if (rowDate > eDate) matchDate = false;
+      }
+    }
+    return matchSearch && matchDate;
+  });
   
   return (
     <section className="workspace-screen">
@@ -543,7 +568,25 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
       </header>
       <div className="workspace-content">
         <section className="report-table-panel">
-          <div className="panel-heading"><div><h2>All Transactions</h2></div></div>
+          <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div><h2>All Transactions</h2></div>
+            
+            {/* UI FILTER & SEARCH BAR */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#0f172a' }} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>To:</span>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#0f172a' }} />
+              </div>
+              
+              <label className="search-field" style={{ margin: 0, width: '250px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Icon name="search" size={16} />
+                <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari nama atau struk..." type="search" value={searchQuery} style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', color: '#0f172a' }} />
+              </label>
+            </div>
+          </div>
+          
           <div className="table-wrap">
             <table>
               <thead><tr><th>Transaction ID</th><th>Date & Time</th><th>Guest Name</th><th>Payment Method</th><th>Grand Total</th><th>Action</th></tr></thead>
@@ -556,6 +599,11 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
                     <td><button onClick={() => setSelectedReceipt(row)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e2e8f0', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}><Icon name="printer" size={14} /> Print</button></td>
                   </tr>
                 ))}
+                {displayRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Data tidak ditemukan.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -617,7 +665,7 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
 }
 
 function MasterDataDashboard({ products = [] }: { products?: any[] }) {
-  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
+  const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -672,7 +720,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
     
     if (result.success) { 
       setIsModalOpen(false); 
-      router.refresh(); // DIGANTI DARI window.location.reload()
+      router.refresh(); 
     } else { 
       alert("Gagal menyimpan: " + result.error); 
     }
@@ -682,7 +730,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const handleDelete = async (itemCode: string) => {
     if (confirm("Yakin hapus?")) { 
       const result = await deleteMasterItem(itemCode); 
-      if (result.success) router.refresh(); // DIGANTI
+      if (result.success) router.refresh(); 
     }
   };
 
@@ -791,19 +839,44 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
 }
 
 function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
-  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
+  const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234" });
+  const [editMode, setEditMode] = useState(false); // STATE BARU UNTUK EDIT STAFF
+  
+  const defaultForm = { dbId: "", nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234" };
+  const [formData, setFormData] = useState(defaultForm);
   const displayStaff = staffData.length > 0 ? staffData : [];
+
+  const handleOpenAdd = () => {
+    setEditMode(false);
+    setFormData(defaultForm);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (staff: any) => {
+    setEditMode(true);
+    setFormData({
+      dbId: staff.dbId,
+      nama: staff.name,
+      posisi: staff.position,
+      shift: staff.shift,
+      pin: staff.pin || "" 
+    });
+    setIsModalOpen(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const result = await addStaff(formData);
+    
+    // MENGARAHKAN LOGIKA SIMPAN KE ADD ATAU UPDATE
+    const payload = { dbId: formData.dbId, nama: formData.nama, posisi: formData.posisi, shift: formData.shift, pin: formData.pin };
+    const result = editMode ? await updateStaff(payload) : await addStaff(formData);
+    
     if (result.success) { 
-      alert("Staf berhasil ditambahkan!"); 
-      router.refresh(); // DIGANTI DARI window.location.reload()
+      setIsModalOpen(false); 
+      router.refresh(); 
     } 
     else { alert("Gagal menyimpan: " + result.error); }
     setIsSubmitting(false);
@@ -812,7 +885,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   const handleDelete = async (id: number) => {
     if (confirm("Yakin ingin menghapus staf ini?")) { 
       const result = await deleteStaff(id); 
-      if (result.success) router.refresh(); // DIGANTI
+      if (result.success) router.refresh(); 
     }
   };
 
@@ -820,13 +893,13 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
     <section className="workspace-screen">
       <header className="workspace-header">
         <div><h1>Staff Directory</h1><p>Kelola data staf dan shift kerja.</p></div>
-        <button className="export-button add-case-button" type="button" onClick={() => setIsModalOpen(true)}>Add New Staff</button>
+        <button className="export-button add-case-button" type="button" onClick={handleOpenAdd}>Add New Staff</button>
       </header>
 
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', color: '#0f172a' }}>
-            <h3 style={{ marginBottom: '16px' }}>Add New Staff</h3>
+            <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Staff" : "Add New Staff"}</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Full Name</label><input type="text" required value={formData.nama} onChange={(e) => setFormData({...formData, nama: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
               <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Position</label><input type="text" required value={formData.posisi} onChange={(e) => setFormData({...formData, posisi: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
@@ -857,7 +930,12 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
                 <td>{row.name}</td>
                 <td>{row.position}</td>
                 <td><span className="badge category">{row.shift === "Morning" ? "AM" : row.shift === "Evening" ? "PM" : row.shift}</span></td>
-                <td><button onClick={() => handleDelete(row.dbId)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button></td>
+                <td>
+                  <div style={{ display: 'inline-flex', gap: '6px' }}>
+                    <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
+                    <button onClick={() => handleDelete(row.dbId)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -877,7 +955,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   const [saved, setSaved] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<any>(null);
 
-  const router = useRouter(); // SUDAH ADA, TINGGAL DIPAKAI
+  const router = useRouter(); 
 
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
@@ -1034,7 +1112,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
               setSaved(true); 
               setCart({}); 
               window.setTimeout(() => setSaved(false), 1800); 
-              router.refresh(); // DIGANTI DARI window.location.reload()
+              router.refresh(); 
             } else { 
               alert("Gagal menyimpan: " + result.error); 
             }

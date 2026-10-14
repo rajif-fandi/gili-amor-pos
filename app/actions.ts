@@ -304,3 +304,22 @@ export async function updateMasterItem(data: {
     return { success: false, error: error.message || "Gagal memperbarui produk." };
   }
 }
+
+export async function updateStaff(data: { dbId: string; nama: string; posisi: string; shift: string; pin?: string }) {
+  try {
+    const updatedStaff = await prisma.staff.update({
+      where: { staff_id: data.dbId },
+      data: {
+        nama: data.nama,
+        posisi: data.posisi,
+        shift: data.shift || "Morning",
+        pin: data.pin,
+      },
+    });
+    revalidatePath('/');
+    return { success: true, data: updatedStaff };
+  } catch (error: any) {
+    console.error("DETAIL ERROR UPDATE STAFF:", error);
+    return { success: false, error: error.message || "Gagal memperbarui staf." };
+  }
+}
