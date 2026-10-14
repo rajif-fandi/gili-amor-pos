@@ -164,7 +164,11 @@ const controlCenterItems = [
 ];
 
 function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
-  const recentActivities = transactions.slice(0, 5).map((trx: any) => ({
+  // FILTER HANYA HARI INI
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+
+  const recentActivities = todaysTransactions.slice(0, 5).map((trx: any) => ({
     time: trx.time,
     guest: trx.guest,
     detail: trx.items && trx.items.length > 0 
@@ -245,7 +249,9 @@ function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: strin
 function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
-  const displayRows = transactions.length > 0 ? transactions : [];
+  // FILTER HANYA HARI INI
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
   
   const cashTransactions = displayRows.filter((t) => t.method === "Cash");
   const totalCash = cashTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -333,6 +339,11 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
                     </td>
                   </tr>
                 ))}
+                {displayRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Belum ada transaksi hari ini.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -418,11 +429,14 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
 }
 
 function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
-  const router = useRouter(); // DITAMBAHKAN AGAR FAST RELOAD
+  const router = useRouter();
   const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
   const openingCash = Number(openingCashInput) || 0;
 
-  const displayRows = transactions.length > 0 ? transactions : [];
+  // FILTER HANYA HARI INI
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+  
   const cashSales = displayRows.filter(t => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
   const cardSales = displayRows.filter(t => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
   
@@ -450,7 +464,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
     });
     if (result.success) { 
       alert("Shift closing berhasil disubmit!"); 
-      router.refresh(); // DIGANTI DARI window.location.reload()
+      router.refresh(); 
     } else { 
       alert("Gagal menyimpan: " + result.error); 
     }
