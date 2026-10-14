@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
 import { useMemo, useState, useEffect } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 type IconName =
   | "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search"
@@ -266,6 +267,23 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
     return sum + transportTotal;
   }, 0);
 
+  // LOGIKA GENERATE DATA CHART (7 HARI TERAKHIR)
+  const chartData = useMemo(() => {
+    return Array.from({length: 7}).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      
+      const dayTx = transactions.filter((t: any) => t.date && t.date.includes(dateStr));
+      return {
+        name: dateStr,
+        Cash: dayTx.filter((t: any) => t.method === 'Cash').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+        Card: dayTx.filter((t: any) => t.method === 'Card').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+        Room: dayTx.filter((t: any) => t.method === 'Room Charge').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+      };
+    });
+  }, [transactions]);
+
   return (
     <section className="workspace-screen">
       {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
@@ -301,9 +319,26 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
           </article>
         </div>
 
+        {/* GRAFIK ANALYTICS DITAMBAHKAN DI SINI */}
+        <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', height: '350px' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '16px', color: '#0f172a' }}>Revenue Trend (Last 7 Days)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 20, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+              <YAxis tickFormatter={(val) => `Rp ${val.toLocaleString('id-ID')}`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} width={90} />
+              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: number) => `Rp ${value.toLocaleString('id-ID')}`} />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Bar dataKey="Cash" stackId="a" fill="#10b981" />
+              <Bar dataKey="Card" stackId="a" fill="#3b82f6" />
+              <Bar dataKey="Room" stackId="a" fill="#f59e0b" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
         <section className="report-table-panel">
           <div className="panel-heading report-table-heading">
-            <div><h2>Payment Transactions</h2><p>All recorded transactions</p></div>
+            <div><h2>Payment Transactions (Today)</h2><p>All recorded transactions today</p></div>
           </div>
           <div className="table-wrap">
             <table>
@@ -530,18 +565,14 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
 function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   
-  // STATE BARU UNTUK FILTER & PENCARIAN
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   
-  // LOGIKA FILTER
   const displayRows = transactions.filter((row) => {
-    // 1. Pencarian Teks
     const matchSearch = row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         row.receipt.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // 2. Filter Rentang Tanggal
     let matchDate = true;
     if (startDate || endDate) {
       const rowDate = new Date(row.rawDate); 
@@ -571,7 +602,6 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
           <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div><h2>All Transactions</h2></div>
             
-            {/* UI FILTER & SEARCH BAR */}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
@@ -842,7 +872,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editMode, setEditMode] = useState(false); // STATE BARU UNTUK EDIT STAFF
+  const [editMode, setEditMode] = useState(false); 
   
   const defaultForm = { dbId: "", nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234" };
   const [formData, setFormData] = useState(defaultForm);
@@ -870,7 +900,6 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // MENGARAHKAN LOGIKA SIMPAN KE ADD ATAU UPDATE
     const payload = { dbId: formData.dbId, nama: formData.nama, posisi: formData.posisi, shift: formData.shift, pin: formData.pin };
     const result = editMode ? await updateStaff(payload) : await addStaff(formData);
     
