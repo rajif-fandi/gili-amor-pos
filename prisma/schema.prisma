@@ -16,6 +16,7 @@ model Staff {
   desk           String?
   shift          String?
   pin            String?        @default("1234") // Tambahan kolom PIN untuk login
+  role       String  @default("Kasir")
   active         Boolean        @default(true)
   
   transaksi      Transaksi[]
@@ -53,10 +54,18 @@ model Transaksi {
   payment_status String
   payment_method String
   remark         String?
-  
+
+  // --- INI 5 BARIS BARU YANG DITAMBAHKAN ---
+  arrival_date   String?
+  checkout_date  String?
+  booking_source String?
+  notes          String?
+  active         Boolean           @default(true)
+  // -----------------------------------------
+
   staff_id       String
   staff          Staff             @relation(fields: [staff_id], references: [staff_id])
-  
+
   details        DetailTransaksi[]
 }
 

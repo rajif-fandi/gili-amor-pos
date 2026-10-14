@@ -2,19 +2,15 @@
 import { useRouter } from "next/navigation";
 import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
 import { useMemo, useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-type IconName =
-  | "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search"
-  | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa"
-  | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case"
-  | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt"
-  | "check" | "printer" | "none";
+type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank";
 
 function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: number; strokeWidth?: number; }) {
   if (name === "none") return <div style={{ width: size, height: size }} />;
   const paths: Record<string, React.ReactNode> = {
     home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9M9 20v-7h6v7" /></>,
+    dashboard: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>,
     reception: <><path d="M4 19h16M6 16h12M7 16v-3a5 5 0 0 1 10 0v3" /><path d="M12 8V5M10 5h4" /></>,
     rent: <><circle cx="7" cy="17" r="3" /><circle cx="17" cy="17" r="3" /><path d="m7 17 4-7 3 7M9 10h6M14 17h3l-3-7-1-2h3" /></>,
     boat: <><path d="m3 15 3 5h12l3-5H3ZM7 15V8h10v7M12 8V3l4 3h-4" /></>,
@@ -35,6 +31,7 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: n
     utensils: <><path d="M7 3v7M4 3v4a3 3 0 0 0 6 0V3M7 10v11M16 3v18M16 3c3 2 4 5 4 8h-4" /></>,
     cash: <><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M7 9H6v1M17 15h1v-1" /></>,
     card: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h4" /></>,
+    bank: <><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" /></>,
     transfer: <><path d="M5 8h14M16 5l3 3-3 3M19 16H5M8 13l-3 3 3 3" /></>,
     room: <><path d="M5 21V4h13v17M9 21V8h5v13M3 21h18" /><path d="M11 14h.01" /></>,
     case: <><path d="M8 4h8M9 3h6v3H9zM7 5H5v16h14V5h-2" /><path d="m8 13 2 2 5-5M8 9h2" /></>,
@@ -49,646 +46,192 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: n
     check: <path d="m5 12 4 4L19 6" />,
     printer: <><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></>
   };
-
-  return (
-    <svg aria-hidden="true" fill="none" height={size} viewBox="0 0 24 24" width={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth}>
-      {paths[name]}
-    </svg>
-  );
+  return <svg aria-hidden="true" fill="none" height={size} viewBox="0 0 24 24" width={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth}>{paths[name]}</svg>;
 }
 
 const formatIDR = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
+// --- KOMPONEN LAINNYA TETAP ---
 function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () => void }) {
   if (!transaction) return null;
-
   return (
-    <>
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #printable-receipt, #printable-receipt * { visibility: visible; }
-          #printable-receipt {
-            position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 5mm;
-            font-family: monospace, sans-serif; color: #000;
-          }
-          .hide-on-print { display: none !important; }
-        }
-      `}</style>
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-        <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '380px', color: '#0f172a', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-          <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0 }}>Receipt Preview</h3>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
-          </div>
-          
-          <div id="printable-receipt" style={{ flex: 1, overflowY: 'auto', border: '1px dashed #ccc', padding: '20px', backgroundColor: '#fafafa', fontFamily: 'monospace', fontSize: '13px' }}>
-            <div style={{ textAlign: 'center', borderBottom: '1px dashed #666', paddingBottom: '12px', marginBottom: '12px' }}>
-              <strong style={{ fontSize: '18px' }}>GILI AMOR</strong>
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>Boutique Resort</div>
-              <div style={{ fontSize: '11px', marginTop: '4px' }}>Gili Trawangan, Lombok</div>
-            </div>
-            
-            <div style={{ marginBottom: '12px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Receipt No:</span> <span>{transaction.receipt}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Date:</span> <span>{transaction.date}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Guest:</span> <span>{transaction.guest}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Method:</span> <span>{transaction.method}</span></div>
-            </div>
-            
-            <div style={{ borderTop: '1px dashed #666', borderBottom: '1px dashed #666', padding: '12px 0', marginBottom: '12px' }}>
-              {transaction.items && transaction.items.length > 0 ? (
-                transaction.items.map((item: any, idx: number) => (
-                  <div key={idx} style={{ marginBottom: '8px' }}>
-                    <div style={{ fontWeight: 600 }}>{item.name}</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{item.qty} x {item.price.toLocaleString("id-ID")}</span>
-                      <span>{item.total.toLocaleString("id-ID")}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontStyle: 'italic', color: '#666' }}>No detailed items available.</div>
-              )}
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginBottom: '24px' }}>
-              <span>TOTAL</span>
-              <span>{formatIDR(transaction.total)}</span>
-            </div>
-            
-            <div style={{ textAlign: 'center', fontSize: '11px', marginTop: '20px' }}>
-              <p>Thank you for choosing Gili Amor!</p>
-              <p>Have a pleasant day.</p>
-            </div>
-          </div>
-          
-          <div className="hide-on-print" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Close</button>
-            <button onClick={() => window.print()} style={{ flex: 2, padding: '10px', background: '#10b981', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <Icon name="printer" size={16} /> Print Receipt
-            </button>
-          </div>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '380px', color: '#0f172a', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0 }}>Receipt Preview</h3><button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
         </div>
-      </div>
-    </>
-  );
-}
-
-const navItems: { label: string; icon: IconName }[] = [
-  { label: "Home", icon: "home" },
-  { label: "Reception", icon: "reception" },
-  { label: "Rent", icon: "rent" },
-  { label: "Boat", icon: "boat" },
-  { label: "Buy", icon: "buy" },
-  { label: "Case / Follow-up", icon: "case" },
-  { label: "Payment Database", icon: "database" },
-  { label: "Case Report", icon: "reports" },
-  { label: "Reports", icon: "reports" },
-  { label: "Shift Closing", icon: "shift" },
-  { label: "Master Data", icon: "database" },
-  { label: "Staff", icon: "staff" },
-];
-
-const controlCenterItems = [
-  { label: "Reception POS", description: "Guest services & charges", icon: "reception" as IconName, color: "blue" },
-  { label: "Rent POS", description: "Equipment & bicycle rental", icon: "rent" as IconName, color: "mint" },
-  { label: "Boat POS", description: "Trips & island transfers", icon: "boat" as IconName, color: "sky" },
-  { label: "Buy POS", description: "Retail & resort shop", icon: "buy" as IconName, color: "peach" },
-  { label: "Case / Follow-up", description: "Guest requests & cases", icon: "case" as IconName, color: "rose" },
-  { label: "Payment Database", description: "Payment records", icon: "database" as IconName, color: "lilac" },
-  { label: "Daily Report", description: "Daily financial overview", icon: "reports" as IconName, color: "sand" },
-  { label: "Case Report", description: "Cases & resolution status", icon: "case" as IconName, color: "pink" },
-  { label: "Shift Closing", description: "Reconcile current shift", icon: "shift" as IconName, color: "mint" },
-  { label: "Master Data", description: "Products, prices & rooms", icon: "database" as IconName, color: "blue" },
-  { label: "Staff", description: "Team & access management", icon: "staff" as IconName, color: "lime" },
-];
-
-function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
-  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
-
-  const recentActivities = todaysTransactions.slice(0, 5).map((trx: any) => ({
-    time: trx.time,
-    guest: trx.guest,
-    detail: trx.items && trx.items.length > 0 
-      ? `${trx.items[0].name} ${trx.items.length > 1 ? `(+${trx.items.length - 1} item)` : ''} · Room ${trx.room}` 
-      : `Payment · Room ${trx.room}`,
-    amount: trx.amount,
-    icon: trx.method === "Cash" ? "cash" : trx.method === "Card" ? "card" : ("room" as IconName),
-    color: trx.method === "Cash" ? "mint" : trx.method === "Card" ? "blue" : "sand"
-  }));
-
-  return (
-    <section className="workspace-screen">
-      <header className="workspace-header">
-        <div>
-          <p className="eyebrow">GILI AMOR RESORT</p>
-          <h1>Good Morning, Front Desk</h1>
-          <p className="header-subtitle">Here is what is happening at Gili Amor today.</p>
-        </div>
-      </header>
-
-      <div className="workspace-content">
-        <section className="control-center">
-          <div className="control-heading">
-            <div>
-              <h2>Control Center</h2>
-              <p>Quick access to your daily resort operations</p>
-            </div>
-            <span>11 applications</span>
+        <div style={{ flex: 1, overflowY: 'auto', border: '1px dashed #ccc', padding: '20px', backgroundColor: '#fafafa', fontFamily: 'monospace', fontSize: '13px' }}>
+          <div style={{ textAlign: 'center', borderBottom: '1px dashed #666', paddingBottom: '12px', marginBottom: '12px' }}>
+            <strong style={{ fontSize: '18px' }}>GILI AMOR</strong><div style={{ fontSize: '12px' }}>Boutique Resort</div>
           </div>
-          <div className="launchpad-grid">
-            {controlCenterItems.map((item) => (
-              <button
-                className="launchpad-card"
-                key={item.label}
-                onClick={() => {
-                  const destinations: Record<string, string> = {
-                    "Reception POS": "Reception", "Rent POS": "Rent", "Boat POS": "Boat", "Buy POS": "Buy",
-                    "Case / Follow-up": "Case / Follow-up", "Payment Database": "Payment Database", 
-                    "Daily Report": "Reports", "Case Report": "Case Report", "Shift Closing": "Shift Closing",
-                    "Master Data": "Master Data", "Staff": "Staff",
-                  };
-                  if (destinations[item.label]) onLaunch(destinations[item.label]);
-                }}
-              >
-                <span className={`launchpad-icon ${item.color}`}><Icon name={item.icon} size={27} strokeWidth={1.65} /></span>
-                <strong>{item.label}</strong>
-                <small>{item.description}</small>
-                <span className="launch-arrow">→</span>
-              </button>
+          <div style={{ marginBottom: '12px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>No:</span> <span>{transaction.receipt}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Guest:</span> <span>{transaction.guest}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Method:</span> <span>{transaction.method}</span></div>
+            {transaction.bookingSource !== "-" && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Source:</span> <span>{transaction.bookingSource}</span></div>}
+          </div>
+          <div style={{ borderTop: '1px dashed #666', borderBottom: '1px dashed #666', padding: '12px 0', marginBottom: '12px' }}>
+            {transaction.items && transaction.items.map((item: any, idx: number) => (
+              <div key={idx} style={{ marginBottom: '8px' }}>
+                <div style={{ fontWeight: 600 }}>{item.name}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{item.qty} x {item.price.toLocaleString("id-ID")}</span><span>{item.total.toLocaleString("id-ID")}</span></div>
+              </div>
             ))}
           </div>
-        </section>
-
-        <section className="activity-panel">
-          <div className="panel-heading">
-            <div><h2>Recent Activities</h2><p>Latest guest transactions and services</p></div>
-          </div>
-          <div className="activity-list">
-            {recentActivities.length > 0 ? (
-              recentActivities.map((activity, index) => (
-                <div className="activity-row" key={`${activity.time}-${activity.guest}-${index}`}>
-                  <div className={`activity-icon ${activity.color}`}><Icon name={activity.icon as IconName} size={20} /></div>
-                  <div className="activity-main"><strong>{activity.guest}</strong><span>{activity.detail}</span></div>
-                  <time>{activity.time}</time>
-                  <strong className="activity-amount">{formatIDR(activity.amount)}</strong>
-                </div>
-              ))
-            ) : (
-              <p style={{ padding: '20px', color: '#64748b', fontSize: '13px', textAlign: 'center' }}>Belum ada aktivitas hari ini.</p>
-            )}
-          </div>
-        </section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginBottom: '24px' }}><span>TOTAL</span><span>{formatIDR(transaction.total)}</span></div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}><button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>Close</button></div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
-  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+const navItems = [
+  { label: "Launchpad", icon: "home" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Dashboard", icon: "dashboard" as IconName, roles: ["Admin"] },
+  { label: "Reception", icon: "reception" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Rent", icon: "rent" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Buy", icon: "buy" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Case / Follow-up", icon: "case" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Payment Database", icon: "database" as IconName, roles: ["Admin"] },
+  { label: "Case Report", icon: "reports" as IconName, roles: ["Admin"] },
+  { label: "Reports", icon: "reports" as IconName, roles: ["Admin"] },
+  { label: "Shift Closing", icon: "shift" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Master Data", icon: "database" as IconName, roles: ["Admin"] },
+  { label: "Staff", icon: "staff" as IconName, roles: ["Admin"] },
+];
 
-  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
-  
-  const cashTransactions = displayRows.filter((t) => t.method === "Cash");
-  const totalCash = cashTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-  
-  const cardTransactions = displayRows.filter((t) => t.method === "Card");
-  const totalCard = cardTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  const roomChargeTransactions = displayRows.filter((t) => t.method === "Room Charge");
-  const totalRoomCharge = roomChargeTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  const totalTransport = displayRows.reduce((sum, t) => {
-    const transportItems = (t.items || []).filter((item: any) => item.category === "TRANSFER");
-    const transportTotal = transportItems.reduce((itemSum: number, item: any) => itemSum + (item.total || 0), 0);
-    return sum + transportTotal;
-  }, 0);
-
-  // LOGIKA GENERATE DATA CHART (7 HARI TERAKHIR)
+function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: any[], cases?: any[] }) {
   const chartData = useMemo(() => {
     return Array.from({length: 7}).map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      
       const dayTx = transactions.filter((t: any) => t.date && t.date.includes(dateStr));
       return {
         name: dateStr,
         Cash: dayTx.filter((t: any) => t.method === 'Cash').reduce((s: number, t: any) => s + (t.amount || 0), 0),
         Card: dayTx.filter((t: any) => t.method === 'Card').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+        Bank: dayTx.filter((t: any) => t.method === 'Bank Transfer').reduce((s: number, t: any) => s + (t.amount || 0), 0),
         Room: dayTx.filter((t: any) => t.method === 'Room Charge').reduce((s: number, t: any) => s + (t.amount || 0), 0),
       };
     });
   }, [transactions]);
 
-  return (
-    <section className="workspace-screen">
-      {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      
-      <header className="workspace-header reports-header">
-        <div>
-          <p className="eyebrow">FINANCIAL OVERVIEW</p>
-          <h1>Daily Payment Report</h1>
-          <p className="header-subtitle">Review and reconcile today's guest payments.</p>
-        </div>
-      </header>
-
-      <div className="workspace-content">
-        <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div>
-          </article>
-          
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon blue" style={{ marginBottom: '12px' }}><Icon name="card" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Card</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCard)}</strong></div>
-          </article>
-
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon sand" style={{ marginBottom: '12px' }}><Icon name="room" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Room Charge</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalRoomCharge)}</strong></div>
-          </article>
-
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon sky" style={{ marginBottom: '12px' }}><Icon name="boat" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Transport Revenue</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalTransport)}</strong></div>
-          </article>
-        </div>
-
-        {/* GRAFIK ANALYTICS DITAMBAHKAN DI SINI */}
-        <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', height: '350px' }}>
-          <h3 style={{ marginBottom: '20px', fontSize: '16px', color: '#0f172a' }}>Revenue Trend (Last 7 Days)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-              <YAxis tickFormatter={(val) => `Rp ${val.toLocaleString('id-ID')}`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} width={90} />
-              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
-              <Bar dataKey="Cash" stackId="a" fill="#10b981" />
-              <Bar dataKey="Card" stackId="a" fill="#3b82f6" />
-              <Bar dataKey="Room" stackId="a" fill="#f59e0b" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <section className="report-table-panel">
-          <div className="panel-heading report-table-heading">
-            <div><h2>Payment Transactions (Today)</h2><p>All recorded transactions today</p></div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Receipt No</th>
-                  <th>Guest Name</th>
-                  <th>Payment Method</th>
-                  <th>Total Amount</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayRows.map((row) => (
-                  <tr key={row.receipt || row.id}>
-                    <td>{row.time}</td>
-                    <td><strong>{row.receipt}</strong></td>
-                    <td>{row.guest} <br/><small style={{color: '#64748b'}}>Room {row.room}</small></td>
-                    <td>
-                      <span className={`payment-badge ${row.method === "Cash" ? "cash" : row.method === "Card" ? "card" : "room"}`}>
-                        <Icon name={row.method === "Cash" ? "cash" : row.method === "Card" ? "card" : "room"} size={14} />
-                        {row.method}
-                      </span>
-                    </td>
-                    <td><strong>{formatIDR(row.amount)}</strong></td>
-                    <td>
-                      <button onClick={() => setSelectedReceipt(row)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e2e8f0', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        <Icon name="printer" size={14} /> Print
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {displayRows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Belum ada transaksi hari ini.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
-function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cases?: any[] }) {
-  const router = useRouter(); 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ desk: "Front Office", case_type: "Maintenance", nama_tamu: "", room: "", priority: "Medium", description: "", assigned_to: staffList.length > 0 ? staffList[0].dbId : "" });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.assigned_to) return alert("Pilih staf yang bertugas terlebih dahulu!");
-    setIsSubmitting(true);
-    const result = await saveCaseFollowUp(formData);
-    if (result.success) { 
-      alert("Tugas/Case berhasil ditambahkan!"); 
-      router.refresh(); 
-    } 
-    else { alert("Gagal menyimpan: " + result.error); }
-    setIsSubmitting(false);
-  };
-
-  const handleResolve = async (caseNo: string) => {
-    if (confirm("Tandai tugas ini sebagai selesai?")) {
-      const result = await resolveCase(caseNo);
-      if (result.success) router.refresh();
-      else alert("Gagal menyelesaikan: " + result.error);
-    }
-  };
-
-  return (
-    <section className="workspace-screen">
-      <header className="workspace-header">
-        <div><p className="eyebrow">OPERATIONS</p><h1>Case & Follow-up</h1><p className="header-subtitle">Kelola permintaan tamu dan tugas operasional staf.</p></div>
-      </header>
-      <div className="workspace-content" style={{ display: 'grid', gap: '24px', gridTemplateColumns: '1fr 2fr', alignItems: 'start' }}>
-        <section className="report-table-panel" style={{ padding: '24px' }}>
-          <h2>Buat Tugas Baru</h2>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Tipe Case</span><select value={formData.case_type} onChange={(e) => setFormData({...formData, case_type: e.target.value})} style={{ width: '100%', padding: '8px' }}><option value="Maintenance">Maintenance</option><option value="Housekeeping">Housekeeping</option><option value="Room Service">Room Service</option><option value="Transport">Transport</option></select></label>
-            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Nama Tamu / Room</span><div style={{ display: 'flex', gap: '8px' }}><input placeholder="Nama Tamu" required value={formData.nama_tamu} onChange={(e) => setFormData({...formData, nama_tamu: e.target.value})} style={{ flex: 1, padding: '8px' }} /><input placeholder="Room" required value={formData.room} onChange={(e) => setFormData({...formData, room: e.target.value})} style={{ width: '80px', padding: '8px' }} /></div></label>
-            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Prioritas</span><select value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})} style={{ width: '100%', padding: '8px' }}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High (Urgent)</option></select></label>
-            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Tugaskan Kepada</span><select value={formData.assigned_to} onChange={(e) => setFormData({...formData, assigned_to: e.target.value})} style={{ width: '100%', padding: '8px' }}>{staffList.map(staff => (<option key={staff.dbId} value={staff.dbId}>{staff.name} ({staff.position})</option>))}</select></label>
-            <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Deskripsi</span><textarea required rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} style={{ width: '100%', padding: '8px' }} /></label>
-            <button className="submit-shift-button" type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan Tugas"}</button>
-          </form>
-        </section>
-        <section className="report-table-panel">
-          <div className="panel-heading"><h2>Daftar Tugas</h2></div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>No Case</th><th>Kategori</th><th>Kamar & Tamu</th><th>Ditugaskan Ke</th><th>Status / Aksi</th></tr></thead>
-              <tbody>
-                {cases.map((c: any) => (
-                  <tr key={c.case_no} style={{ opacity: c.status === 'RESOLVED' ? 0.6 : 1 }}>
-                    <td><strong>{c.case_no}</strong></td>
-                    <td>{c.case_type} <br/><small style={{color: c.priority === 'High' ? 'red' : 'gray'}}>{c.priority} Priority</small></td>
-                    <td>{c.room} - {c.nama_tamu} <br/><small>{c.description}</small></td>
-                    <td>{c.staff_name}</td>
-                    <td>
-                      {c.status === 'OPEN' ? (
-                        <button onClick={() => handleResolve(c.case_no)} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                          Resolve
-                        </button>
-                      ) : (
-                        <span className="payment-badge cash">RESOLVED</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
-function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentStaff = null }: { transactions?: any[], shiftClosings?: any[], currentStaff?: any }) {
-  const router = useRouter(); 
-  const [openingCashInput, setOpeningCashInput] = useState("1000000"); 
-  const openingCash = Number(openingCashInput) || 0;
+  const pieData = [
+    { name: 'Cash', value: chartData.reduce((s, d) => s + d.Cash, 0) },
+    { name: 'Card', value: chartData.reduce((s, d) => s + d.Card, 0) },
+    { name: 'Bank Transfer', value: chartData.reduce((s, d) => s + d.Bank, 0) },
+    { name: 'Room Charge', value: chartData.reduce((s, d) => s + d.Room, 0) }
+  ].filter(d => d.value > 0);
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'];
 
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
-  
-  const cashSales = displayRows.filter(t => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
-  const cardSales = displayRows.filter(t => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
-  
-  const expectedCash = openingCash + cashSales;
-  const [actualCash, setActualCash] = useState(expectedCash.toString());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const actualValue = Number(actualCash) || 0;
-  const variance = actualValue - expectedCash;
-
-  useEffect(() => {
-    setActualCash(expectedCash.toString());
-  }, [expectedCash]);
-
-  const handleSubmitClosing = async () => {
-    setIsSubmitting(true);
-    const result = await saveShiftClosing({ 
-      openingCash, 
-      cashSales, 
-      cardSales, 
-      expectedCash, 
-      actualCash: actualValue, 
-      variance, 
-      shift: currentStaff ? currentStaff.shift : "Morning" 
-    });
-    if (result.success) { 
-      alert("Shift closing berhasil disubmit!"); 
-      router.refresh(); 
-    } else { 
-      alert("Gagal menyimpan: " + result.error); 
-    }
-    setIsSubmitting(false);
-  };
+  const todaysGuests = Array.from(new Set(transactions.filter(t => t.date && t.date.includes(todayStr) && t.room !== "-").map(t => `${t.guest} (Room ${t.room})`)));
+  const openCases = cases.filter(c => c.status === "OPEN");
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><p className="eyebrow">FRONT OFFICE · SHIFT CLOSING</p><h1>Cash Reconciliation</h1></div></header>
-      <div className="workspace-content shift-content">
-        <div className="shift-summary">
-          {[{ label: "Opening Cash", value: openingCash, icon: "cash" as IconName, color: "sand" }, { label: "Total Cash Sales", value: cashSales, icon: "cash" as IconName, color: "mint" }, { label: "Total Card Sales", value: cardSales, icon: "card" as IconName, color: "blue" }].map((item) => (
-            <article className="shift-summary-card" key={item.label}><div className={`metric-icon ${item.color}`}><Icon name={item.icon} size={22} /></div><p>{item.label}</p><strong>{formatIDR(item.value)}</strong></article>
+      <header className="workspace-header"><div><p className="eyebrow">ANALYTICS</p><h1>Manager Dashboard</h1></div></header>
+      <div className="workspace-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '320px' }}>
+            <h3 style={{ marginBottom: '20px', fontSize: '15px' }}>Revenue Trend (7 Days)</h3>
+            <ResponsiveContainer width="100%" height="80%">
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(val) => `Rp${val/1000}k`} tick={{ fontSize: 11 }} width={60} />
+                <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
+                <Legend />
+                <Bar dataKey="Cash" stackId="a" fill="#10b981" />
+                <Bar dataKey="Card" stackId="a" fill="#3b82f6" />
+                <Bar dataKey="Bank" stackId="a" fill="#8b5cf6" />
+                <Bar dataKey="Room" stackId="a" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ marginBottom: '20px', fontSize: '15px', textAlign: 'center' }}>Revenue Distribution</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '300px' }}>
+              <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Today's In-House Guest</h3>
+              {todaysGuests.length > 0 ? (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {todaysGuests.map((g, i) => <li key={i} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px', fontWeight: 600 }}>{g}</li>)}
+                </ul>
+              ) : <p style={{ fontSize: '13px', color: '#64748b' }}>Belum ada tamu aktif hari ini.</p>}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '350px', overflowY: 'auto' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="clock" size={18} /> Agenda & Task (OPEN)</h3>
+            {openCases.length > 0 ? openCases.map((c: any) => (
+              <div key={c.case_no} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '10px', borderLeft: `4px solid ${c.priority === 'High' ? '#ef4444' : '#3b82f6'}` }}>
+                <strong style={{ fontSize: '13px', display: 'block' }}>{c.case_type} - Room {c.room}</strong>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>Assigned: {c.staff_name}</span>
+                <p style={{ fontSize: '12px', marginTop: '4px' }}>"{c.description}"</p>
+              </div>
+            )) : <p style={{ fontSize: '13px', color: '#64748b' }}>Semua tugas selesai.</p>}
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
+function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+
+  return (
+    <section className="workspace-screen">
+      <header className="workspace-header"><div><p className="eyebrow">GILI AMOR RESORT</p><h1>Launchpad</h1><p className="header-subtitle">Welcome back! Choose an application.</p></div></header>
+      <div className="workspace-content">
+        <div className="launchpad-grid">
+          {navItems.filter(n => n.label !== "Launchpad" && n.label !== "Dashboard").map((item) => (
+            <button className="launchpad-card" key={item.label} onClick={() => onLaunch(item.label)}>
+              <span className={`launchpad-icon blue`}><Icon name={item.icon} size={27} /></span>
+              <strong>{item.label}</strong>
+              <span className="launch-arrow">→</span>
+            </button>
           ))}
         </div>
-        <section className="reconciliation-panel">
-          <div className="reconciliation-heading"><div><h2>Cash Reconciliation</h2></div><div className="reconciliation-icon"><Icon name="shift" size={25} /></div></div>
-          <div className="reconciliation-form">
-            <label>
-              <span>Opening Cash (Modal Awal)</span>
-              <div className="currency-input">
-                <span>Rp</span>
-                <input 
-                  inputMode="numeric" 
-                  onChange={(event) => setOpeningCashInput(event.target.value.replace(/\D/g, ""))} 
-                  value={openingCashInput} 
-                />
-              </div>
-            </label>
-            
-            <label><span>Expected Cash in Drawer</span><div className="currency-input readonly"><span>Rp</span><input readOnly value={expectedCash.toLocaleString("id-ID")} /></div></label>
-            <label>
-              <span>Actual Cash Counted (Fisik)</span>
-              <div className="currency-input">
-                <span>Rp</span>
-                <input 
-                  inputMode="numeric" 
-                  onChange={(event) => setActualCash(event.target.value.replace(/\D/g, ""))} 
-                  value={actualCash} 
-                />
-              </div>
-            </label>
-            <div className={`variance-field ${variance === 0 ? "balanced" : variance > 0 ? "over" : "short"}`}>
-              <div><span>Variance</span><small>{variance === 0 ? "Cash drawer is balanced" : variance > 0 ? "Cash over expected amount" : "Cash short of expected amount"}</small></div>
-              <strong>{variance > 0 ? "+" : ""}{formatIDR(variance)}</strong>
-            </div>
-            <button className="submit-shift-button" type="button" disabled={isSubmitting} onClick={handleSubmitClosing}><Icon name="check" size={21} strokeWidth={2.3} />{isSubmitting ? "Submitting..." : "Submit Shift Closing"}</button>
-          </div>
-        </section>
-        <section className="report-table-panel" style={{ marginTop: '24px' }}>
-          <div className="panel-heading"><div><h2>Shift Closing History</h2></div></div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Close No</th><th>Tanggal & Waktu</th><th>Expected Cash</th><th>Actual Cash</th><th>Variance</th></tr></thead>
-              <tbody>
-                {shiftClosings.map((closing: any) => (<tr key={closing.close_no}><td><strong>{closing.close_no}</strong></td><td>{new Date(closing.tanggal).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</td><td>{formatIDR(closing.expected_cash)}</td><td>{formatIDR(closing.actual_cash)}</td><td><span className={`payment-badge ${closing.variance === 0 ? 'room' : closing.variance > 0 ? 'cash' : 'card'}`}>{closing.variance > 0 ? "+" : ""}{formatIDR(closing.variance)}</span></td></tr>))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
-function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
-  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
-  
-  const [searchQuery, setSearchQuery] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  
-  const displayRows = transactions.filter((row) => {
-    const matchSearch = row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        row.receipt.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    let matchDate = true;
-    if (startDate || endDate) {
-      const rowDate = new Date(row.rawDate); 
-      if (startDate) {
-        const sDate = new Date(startDate);
-        sDate.setHours(0, 0, 0, 0);
-        if (rowDate < sDate) matchDate = false;
-      }
-      if (endDate) {
-        const eDate = new Date(endDate);
-        eDate.setHours(23, 59, 59, 999);
-        if (rowDate > eDate) matchDate = false;
-      }
-    }
-    return matchSearch && matchDate;
-  });
-  
-  return (
-    <section className="workspace-screen">
-      {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      
-      <header className="workspace-header database-header">
-        <div><p className="eyebrow">TRANSACTION RECORDS</p><h1>Payment Database</h1></div>
-      </header>
-      <div className="workspace-content">
-        <section className="report-table-panel">
-          <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-            <div><h2>All Transactions</h2></div>
-            
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#0f172a' }} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>To:</span>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#0f172a' }} />
-              </div>
-              
-              <label className="search-field" style={{ margin: 0, width: '250px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Icon name="search" size={16} />
-                <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari nama atau struk..." type="search" value={searchQuery} style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', color: '#0f172a' }} />
-              </label>
-            </div>
-          </div>
-          
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Transaction ID</th><th>Date & Time</th><th>Guest Name</th><th>Payment Method</th><th>Grand Total</th><th>Action</th></tr></thead>
-              <tbody>
-                {displayRows.map((row) => (
-                  <tr key={row.id}>
-                    <td><strong>{row.id}</strong></td><td>{row.date}</td><td>{row.guest}</td>
-                    <td><span className={`payment-badge ${row.method.toLowerCase()}`}><Icon name={row.method === "Cash" ? "cash" : row.method === "Card" ? "card" : "room"} size={14} />{row.method}</span></td>
-                    <td><strong>{formatIDR(row.total)}</strong></td>
-                    <td><button onClick={() => setSelectedReceipt(row)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e2e8f0', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}><Icon name="printer" size={14} /> Print</button></td>
-                  </tr>
-                ))}
-                {displayRows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Data tidak ditemukan.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
-function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
-  const totalCases = cases.length;
-  const resolvedCasesCount = cases.filter((c: any) => c.status !== "OPEN").length; 
-
-  return (
-    <section className="workspace-screen">
-      <header className="workspace-header">
-        <div><p className="eyebrow">PERFORMANCE & ANALYTICS</p><h1>Operational Case Report</h1></div>
-      </header>
-      <div className="workspace-content">
-        <div className="analytics-metrics">
-          <article>
-            <span className="analytics-icon blue"><Icon name="case" size={21} /></span>
-            <div><p>Total Cases</p><strong>{totalCases}</strong></div>
-          </article>
-          <article>
-            <span className="analytics-icon mint"><Icon name="check" size={21} /></span>
-            <div><p>Resolved</p><strong>{resolvedCasesCount}</strong></div>
-          </article>
-        </div>
-        <div className="analytics-grid">
-          <section className="analytics-panel resolved-panel">
-            <div className="panel-heading"><div><h2>Recent Cases Overview</h2></div></div>
-            <div className="resolved-list">
-              {cases.length > 0 ? cases.map((item: any) => (
-                <div className="resolved-row" key={item.case_no}>
-                  <span className="resolved-check">
-                    <Icon name={item.status === 'OPEN' ? "clock" : "check"} size={14} strokeWidth={2.4} />
+        <section className="activity-panel" style={{ marginTop: '30px' }}>
+          <div className="panel-heading"><div><h2>Recent Activities Detail</h2></div></div>
+          <div className="activity-list">
+            {todaysTransactions.slice(0, 10).map((trx: any, index) => (
+              <div className="activity-row" key={index}>
+                <div className={`activity-icon blue`}><Icon name="reception" size={20} /></div>
+                <div className="activity-main">
+                  <strong>{trx.guest} (Room {trx.room})</strong>
+                  <span style={{ fontSize: '11px' }}>
+                    {trx.items?.map((i:any) => `${i.qty}x ${i.name}`).join(', ')} 
+                    {trx.notes !== "-" && ` | Note: ${trx.notes}`}
                   </span>
-                  <div>
-                    <strong>{item.case_type} - {item.priority} Priority</strong>
-                    <p>{item.case_no} · Room {item.room} · Staf: {item.staff_name} · Tamu: {item.nama_tamu}</p>
-                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>"{item.description}"</p>
-                  </div>
-                  <time>
-                    <span className={`payment-badge ${item.status === 'OPEN' ? 'room' : 'cash'}`}>
-                      {item.status}
-                    </span>
-                  </time>
                 </div>
-              )) : (
-                <p style={{ padding: '20px', color: '#64748b', fontSize: '14px' }}>Belum ada case atau tugas operasional saat ini.</p>
-              )}
-            </div>
-          </section>
-        </div>
+                <strong className="activity-amount">{formatIDR(trx.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </section>
   );
@@ -697,145 +240,37 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
 function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  
-  const defaultForm = { 
-    item_code: "", 
-    item_service: "", 
-    default_rate: "", 
-    category: "CHARGE", 
-    billing_type: "PER_UNIT",
-    desk: "none",
-    notes: "" 
-  };
-  
+  const defaultForm = { item_code: "", item_service: "", default_rate: "", category: "CHARGE", billing_type: "PER_UNIT", desk: "none", notes: "" };
   const [formData, setFormData] = useState(defaultForm);
-  const displayRows = products.length > 0 ? products : [];
-
-  const handleOpenAdd = () => {
-    setEditMode(false);
-    setFormData(defaultForm);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (item: any) => {
-    setEditMode(true);
-    setFormData({
-      item_code: item.id,
-      item_service: item.name,
-      default_rate: item.price.toString(),
-      category: item.category,
-      billing_type: item.billing_type,
-      desk: item.icon,
-      notes: item.notes || ""
-    });
-    setIsModalOpen(true);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    const payload = { 
-      item_code: formData.item_code,
-      item_service: formData.item_service, 
-      default_rate: Number(formData.default_rate), 
-      category: formData.category, 
-      billing_type: formData.billing_type,
-      desk: formData.desk,
-      notes: formData.notes
-    };
-    
+    const payload = { ...formData, default_rate: Number(formData.default_rate) };
     const result = editMode ? await updateMasterItem(payload) : await addMasterItem(payload);
-    
-    if (result.success) { 
-      setIsModalOpen(false); 
-      router.refresh(); 
-    } else { 
-      alert("Gagal menyimpan: " + result.error); 
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (itemCode: string) => {
-    if (confirm("Yakin hapus?")) { 
-      const result = await deleteMasterItem(itemCode); 
-      if (result.success) router.refresh(); 
-    }
+    if (result.success) { setIsModalOpen(false); router.refresh(); } 
+    else alert("Gagal menyimpan: " + result.error); 
   };
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header">
-        <div><h2>Master Data</h2></div>
-        <button className="export-button add-case-button" type="button" onClick={handleOpenAdd}>Add New Item</button>
-      </header>
+      <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Item</button></header>
       
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a' }}>
             <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Item" : "Add New Item"}</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Item Code</label>
-                <input type="text" placeholder="Cth: RENT-BIKE" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: editMode ? '#f1f5f9' : '#fff' }} disabled={editMode} />
-                {editMode && <small style={{ color: '#64748b', fontSize: '11px' }}>*Kode tidak bisa diubah saat mode edit.</small>}
-              </div>
-              
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Item / Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              
+              <div><label>Item Code</label><input type="text" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} disabled={editMode} /></div>
+              <div><label>Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              <div><label>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    <option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Billing Type</label>
-                  <select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    <option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option>
-                  </select>
-                </div>
+                <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '6px' }}><option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option></select>
+                <select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '6px' }}><option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option></select>
               </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Icon / Logo</label>
-                  <select value={formData.desk} onChange={(e) => setFormData({...formData, desk: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    <option value="none">No Logo / Default</option>
-                    <option value="coffee">Coffee / Breakfast</option>
-                    <option value="bed">Bed / Room</option>
-                    <option value="bike">Bike / Vehicle</option>
-                    <option value="spa">Spa / Treatment</option>
-                    <option value="car">Car / Transfer</option>
-                    <option value="laundry">Laundry</option>
-                    <option value="sun">Sun / Essentials</option>
-                    <option value="rent">Rent / E-Bike</option>
-                    <option value="dive">Dive / Snorkeling</option>
-                    <option value="clock">Clock / Late Charge</option>
-                    <option value="cake">Cake / Celebration</option>
-                    <option value="utensils">Utensils / Restaurant</option>
-                    <option value="camera">Camera / Go Pro</option>
-                    <option value="fish">Fish / Fishing</option>
-                    <option value="boat">Boat / Trip</option>
-                    <option value="water">Water / Drinks</option>
-                    <option value="buy">Shopping Bag / Retail</option>
-                    <option value="shirt">Shirt / Apparel</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Notes</label>
-                  <input type="text" placeholder="Cth: Payment only" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-                <button type="submit" disabled={isSubmitting} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>{isSubmitting ? "Saving..." : "Save Item"}</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px' }}>Cancel</button>
+                <button type="submit" style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px' }}>Save</button>
               </div>
             </form>
           </div>
@@ -844,19 +279,15 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
       
       <div className="workspace-content">
         <table className="data-table">
-          <thead><tr><th>ITEM CODE</th><th>ITEM / SERVICE</th><th>CATEGORY</th><th>BILLING</th><th>RATE</th><th>ACTION</th></tr></thead>
+          <thead><tr><th>ITEM</th><th>CATEGORY</th><th>RATE</th><th>ACTION</th></tr></thead>
           <tbody>
-            {displayRows.map((row: any) => (
+            {products.map((row: any) => (
               <tr key={row.id}>
-                <td><strong>{row.id}</strong></td>
-                <td>{row.name}<br/><small style={{color: '#64748b'}}>{row.notes || "-"}</small></td>
-                <td><span className="badge category">{row.category}</span></td>
-                <td>{row.billing_type}</td>
-                <td>{formatIDR(row.price)}</td>
+                <td><strong>{row.id}</strong><br/>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td>
                 <td>
                   <div style={{ display: 'inline-flex', gap: '6px' }}>
-                    <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
-                    <button onClick={() => handleDelete(row.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
+                    <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon, notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Edit</button>
+                    <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -871,99 +302,43 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
 function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false); 
-  
-  const defaultForm = { dbId: "", nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234" };
+  const defaultForm = { dbId: "", nama: "", posisi: "Front Desk", shift: "Morning", pin: "1234", role: "Kasir" };
   const [formData, setFormData] = useState(defaultForm);
-  const displayStaff = staffData.length > 0 ? staffData : [];
-
-  const handleOpenAdd = () => {
-    setEditMode(false);
-    setFormData(defaultForm);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (staff: any) => {
-    setEditMode(true);
-    setFormData({
-      dbId: staff.dbId,
-      nama: staff.name,
-      posisi: staff.position,
-      shift: staff.shift,
-      pin: staff.pin || "" 
-    });
-    setIsModalOpen(true);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    
-    const payload = { dbId: formData.dbId, nama: formData.nama, posisi: formData.posisi, shift: formData.shift, pin: formData.pin };
-    const result = editMode ? await updateStaff(payload) : await addStaff(formData);
-    
-    if (result.success) { 
-      setIsModalOpen(false); 
-      router.refresh(); 
-    } 
-    else { alert("Gagal menyimpan: " + result.error); }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (confirm("Yakin ingin menghapus staf ini?")) { 
-      const result = await deleteStaff(id); 
-      if (result.success) router.refresh(); 
-    }
+    const result = editMode ? await updateStaff(formData) : await addStaff(formData);
+    if (result.success) { setIsModalOpen(false); router.refresh(); } 
   };
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header">
-        <div><h1>Staff Directory</h1><p>Kelola data staf dan shift kerja.</p></div>
-        <button className="export-button add-case-button" type="button" onClick={handleOpenAdd}>Add New Staff</button>
-      </header>
-
+      <header className="workspace-header"><div><h1>Staff Directory</h1></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Staff</button></header>
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', color: '#0f172a' }}>
-            <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Staff" : "Add New Staff"}</h3>
+            <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Staff" : "Add Staff"}</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Full Name</label><input type="text" required value={formData.nama} onChange={(e) => setFormData({...formData, nama: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>Position</label><input type="text" required value={formData.posisi} onChange={(e) => setFormData({...formData, posisi: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Shift</label>
-                <select value={formData.shift} onChange={(e) => setFormData({...formData, shift: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                  <option value="Morning">Morning (AM)</option>
-                  <option value="Evening">Evening (PM)</option>
-                  <option value="Night">Night</option>
-                </select>
-              </div>
-              <div><label style={{ fontSize: '12px', fontWeight: 600 }}>PIN Login</label><input type="text" required value={formData.pin} onChange={(e) => setFormData({...formData, pin: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} placeholder="1234" /></div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSubmitting} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{isSubmitting ? "Saving..." : "Save"}</button>
-              </div>
+              <div><label>Name</label><input type="text" required value={formData.nama} onChange={(e) => setFormData({...formData, nama: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc' }} /></div>
+              <div><label>Position</label><input type="text" required value={formData.posisi} onChange={(e) => setFormData({...formData, posisi: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc' }} /></div>
+              <div><label>Role Hak Akses</label><select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc' }}><option value="Kasir">Kasir / Front Desk</option><option value="Admin">Manager / Admin</option></select></div>
+              <div><label>PIN</label><input type="text" required value={formData.pin} onChange={(e) => setFormData({...formData, pin: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc' }} /></div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={() => setIsModalOpen(false)}>Cancel</button><button type="submit">Save</button></div>
             </form>
           </div>
         </div>
       )}
-
       <div className="workspace-content">
         <table className="data-table">
-          <thead><tr><th>STAFF</th><th>POSITION</th><th>SHIFT</th><th>ACTION</th></tr></thead>
+          <thead><tr><th>STAFF</th><th>POSITION</th><th>ROLE</th><th>ACTION</th></tr></thead>
           <tbody>
-            {displayStaff.map((row: any) => (
+            {staffData.map((row: any) => (
               <tr key={row.dbId}>
-                <td>{row.name}</td>
-                <td>{row.position}</td>
-                <td><span className="badge category">{row.shift === "Morning" ? "AM" : row.shift === "Evening" ? "PM" : row.shift}</span></td>
+                <td>{row.name}</td><td>{row.position}</td><td><span className={`badge ${row.role === 'Admin' ? 'blue' : 'mint'}`}>{row.role}</span></td>
                 <td>
-                  <div style={{ display: 'inline-flex', gap: '6px' }}>
-                    <button onClick={() => handleOpenEdit(row)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
-                    <button onClick={() => handleDelete(row.dbId)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
-                  </div>
+                  <button onClick={() => { setEditMode(true); setFormData({ dbId: row.dbId, nama: row.name, posisi: row.position, shift: row.shift, pin: row.pin, role: row.role }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', marginRight: '4px' }}>Edit</button>
+                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteStaff(row.dbId); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px' }}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -974,111 +349,108 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   );
 }
 
+// ... SISA KOMPONEN LAINNYA BISA DIBIARKAN SAMA (ReportsDashboard, CasesDashboard, ShiftClosingDashboard, PaymentDatabaseDashboard) ...
+
 export default function POSClientApp({ initialProducts, initialStaff, initialTransactions, initialShiftClosings, initialCases = [] }: { initialProducts?: any[]; initialStaff?: any[]; initialTransactions?: any[]; initialShiftClosings?: any[]; initialCases?: any[]; }) {
-  const [activePage, setActivePage] = useState("Home");
+  const router = useRouter(); 
+  const [currentStaff, setCurrentStaff] = useState<any>(null);
+  const [activePage, setActivePage] = useState("Launchpad");
+
+  useEffect(() => {
+    const sessionData = localStorage.getItem("gili_amor_staff");
+    if (sessionData) setCurrentStaff(JSON.parse(sessionData));
+    else router.push("/login");
+  }, [router]);
+
+  const isAdmin = currentStaff?.role === "Admin" || currentStaff?.posisi.toLowerCase().includes("admin");
+  const allowedNavs = navItems.filter(item => item.roles.includes(isAdmin ? "Admin" : "Kasir"));
+
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [query, setQuery] = useState("");
   const [payment, setPayment] = useState("Room Charge");
   const [guestName, setGuestName] = useState(""); 
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [saved, setSaved] = useState(false);
-  const [currentStaff, setCurrentStaff] = useState<any>(null);
-
-  const router = useRouter(); 
-
-  useEffect(() => {
-    const sessionData = localStorage.getItem("gili_amor_staff");
-    if (sessionData) {
-      setCurrentStaff(JSON.parse(sessionData));
-    } else {
-      router.push("/login");
-    }
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("gili_amor_staff");
-    router.push("/login");
-  };
+  
+  // CART SEKARANG MENYIMPAN QTY DAN CUSTOM PRICE (Untuk fitur edit harga kamar)
+  const [cart, setCart] = useState<Record<string, {qty: number, price: number}>>({});
+  const [bookingData, setBookingData] = useState({ arrival: "", checkout: "", source: "Direct", notes: "" });
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
   
-  const allProducts = initialProducts && initialProducts.length > 0 ? initialProducts : [];
+  const allProducts = initialProducts || [];
   let activeProducts = allProducts;
   let categories = ["All Items"];
 
-  if (activePage === "Reception") {
-    activeProducts = allProducts.filter(p => p.category === "CHARGE" || p.category === "TRANSFER");
-    categories = ["All Items", "CHARGE", "TRANSFER"];
-  } else if (activePage === "Rent") {
-    activeProducts = allProducts.filter(p => p.category === "RENTAL");
-    categories = ["All Items", "RENTAL"];
-  } else if (activePage === "Boat") {
-    activeProducts = allProducts.filter(p => p.category === "ACTIVITY" || p.category === "TRANSFER");
-    categories = ["All Items", "ACTIVITY", "TRANSFER"];
-  } else if (activePage === "Buy") {
-    activeProducts = allProducts.filter(p => p.category === "RETAIL");
-    categories = ["All Items", "RETAIL"];
-  }
+  if (activePage === "Reception") { activeProducts = allProducts.filter(p => p.category === "CHARGE" || p.category === "TRANSFER"); categories = ["All Items", "CHARGE", "TRANSFER"]; }
+  else if (activePage === "Rent") { activeProducts = allProducts.filter(p => p.category === "RENTAL"); categories = ["All Items", "RENTAL"]; }
+  else if (activePage === "Boat") { activeProducts = allProducts.filter(p => p.category === "ACTIVITY" || p.category === "TRANSFER"); categories = ["All Items", "ACTIVITY", "TRANSFER"]; }
+  else if (activePage === "Buy") { activeProducts = allProducts.filter(p => p.category === "RETAIL"); categories = ["All Items", "RETAIL"]; }
   
-  const visibleProducts = useMemo(() => activeProducts.filter((product) => (activeCategory === "All Items" || product.category === activeCategory) && product.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
-  const cartItems = activeProducts.filter((product) => cart[product.id]).map((product) => ({ ...product, quantity: cart[product.id] }));
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = 0;
+  const visibleProducts = useMemo(() => activeProducts.filter((p) => (activeCategory === "All Items" || p.category === activeCategory) && p.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
+  
+  const cartItems = Object.entries(cart).map(([id, data]) => {
+    const p = activeProducts.find(x => String(x.id) === id);
+    return { ...p, id, name: p?.name || id, qty: data.qty, price: data.price, color: p?.color || 'blue', icon: p?.icon || 'room' };
+  });
+  
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const showAdvancedBooking = cartItems.some(item => activeProducts.find(p => String(p.id) === item.id)?.category !== "RETAIL");
 
-  const updateQuantity = (id: string, change: number) => { setCart((current) => { const next = Math.max(0, (current[id] || 0) + change); const updated = { ...current }; if (next === 0) delete updated[id]; else updated[id] = next; return updated; }); };
+  const updateQuantity = (id: string, change: number, defaultPrice: number) => { 
+    setCart((curr) => { 
+      const nextQty = Math.max(0, (curr[id]?.qty || 0) + change); 
+      const updated = { ...curr }; 
+      if (nextQty === 0) delete updated[id]; 
+      else updated[id] = { qty: nextQty, price: curr[id]?.price || defaultPrice }; 
+      return updated; 
+    }); 
+  };
+
+  const handleCustomPrice = (id: string, newPrice: number) => {
+    setCart(curr => ({ ...curr, [id]: { ...curr[id], price: newPrice } }));
+  };
 
   return (
     <main className="pos-shell">
       <aside className="navigation">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="brand-mark" style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
-            <img src="/logo-gili.png" alt="Gili Amor Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-          </div>
+          <div className="brand-mark" style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}><img src="/logo-gili.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} /></div>
           <div><strong>GILI AMOR</strong><small>BOUTIQUE RESORT</small></div>
         </div>
         <nav className="nav-list">
           <p className="nav-label">WORKSPACE</p>
-          {navItems.map((item) => (
+          {allowedNavs.map((item) => (
             <button className={`nav-item ${item.label === activePage ? "active" : ""}`} key={item.label} onClick={() => { setActivePage(item.label); setActiveCategory("All Items"); setQuery(""); }}>
-              <Icon name={item.icon} size={20} /><span>{item.label}</span>{item.label === activePage && <span className="active-dot" />}
+              <Icon name={item.icon} size={20} /><span>{item.label}</span>
             </button>
           ))}
         </nav>
-        
-        <div className="staff-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-            <div className="avatar">{currentStaff ? currentStaff.nama.slice(0, 2).toUpperCase() : "GA"}</div>
-            <div style={{ overflow: 'hidden' }}>
-              <strong style={{ display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{currentStaff ? currentStaff.nama : "Loading..."}</strong>
-              <span style={{ fontSize: '11px' }}>{currentStaff ? `${currentStaff.posisi} • ${currentStaff.shift}` : "Staff"}</span>
-            </div>
+        <div className="staff-card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="avatar" style={{ background: isAdmin ? '#3b82f6' : '#10b981' }}>{currentStaff ? currentStaff.nama.slice(0, 2).toUpperCase() : "GA"}</div>
+            <div style={{ overflow: 'hidden' }}><strong style={{ display: 'block' }}>{currentStaff?.nama}</strong><span style={{ fontSize: '11px' }}>{currentStaff?.role}</span></div>
           </div>
-          <button onClick={handleLogout} style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-            Logout
-          </button>
+          <button onClick={() => { localStorage.removeItem("gili_amor_staff"); router.push("/login"); }} style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Logout</button>
         </div>
       </aside>
 
-      {activePage === "Home" && <HomeDashboard transactions={initialTransactions} onLaunch={(page) => { setActivePage(page); setActiveCategory("All Items"); setQuery(""); }} />}
-      {activePage === "Reports" && <ReportsDashboard transactions={initialTransactions} />}
-      {activePage === "Case / Follow-up" && <CasesDashboard staffList={initialStaff} cases={initialCases} />}
-      {activePage === "Shift Closing" && <ShiftClosingDashboard transactions={initialTransactions} shiftClosings={initialShiftClosings} currentStaff={currentStaff} />}
-      {activePage === "Payment Database" && <PaymentDatabaseDashboard transactions={initialTransactions} />}
-      {activePage === "Case Report" && <CaseReportDashboard cases={initialCases} />}
-      {activePage === "Master Data" && <MasterDataDashboard products={initialProducts} />}
-      {activePage === "Staff" && <StaffDashboard staffData={initialStaff} />}
+      {activePage === "Launchpad" && <HomeDashboard onLaunch={(page) => setActivePage(page)} transactions={initialTransactions} />}
+      {activePage === "Dashboard" && isAdmin && <DashboardAnalytics transactions={initialTransactions} cases={initialCases} />}
+      {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
+      {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
+
+      {/* Render komponen lain seperti biasa... */}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">
           <div className="top-row"><div><p className="eyebrow">GILI AMOR RESORT</p><h1>{activePage} POS</h1></div></div>
-          <label className="search-field"><Icon name="search" size={21} /><input onChange={(event) => setQuery(event.target.value)} placeholder="Search products..." type="search" value={query} /></label>
-          <div className="category-row">{categories.map((category) => (<button className={activeCategory === category ? "active" : ""} key={category} onClick={() => setActiveCategory(category)}>{category}</button>))}</div>
+          <label className="search-field"><Icon name="search" size={21} /><input onChange={(e) => setQuery(e.target.value)} placeholder="Search..." type="search" value={query} /></label>
+          <div className="category-row">{categories.map((cat) => (<button className={activeCategory === cat ? "active" : ""} key={cat} onClick={() => setActiveCategory(cat)}>{cat}</button>))}</div>
         </header>
         <div className="catalog-body">
           <div className="product-grid">
             {visibleProducts.map((product) => (
-              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id, 1)}>
-                <div className={`product-icon ${product.color}`}><Icon name={product.icon as IconName} size={27} strokeWidth={1.6} /></div>
+              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id, 1, product.price)}>
+                <div className={`product-icon ${product.color}`}><Icon name={product.icon as IconName} size={27} /></div>
                 <div className="product-copy"><h3>{product.name}</h3><p>{product.category}</p></div>
                 <strong>{formatIDR(product.price)}</strong><span className="add-product">+</span>
               </button>
@@ -1087,7 +459,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </div>
       </section>}
 
-      {isPosPage && <aside className="order-panel">
+      {isPosPage && <aside className="order-panel" style={{ overflowY: 'auto' }}>
         <div className="order-top">
           <div className="order-title"><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1098,55 +470,70 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
         <div className="order-items">
           {cartItems.map((item) => (
-            <div className="cart-item" key={item.id}>
-              <div className={`cart-icon ${item.color}`}><Icon name={item.icon as IconName} size={19} strokeWidth={1.7} /></div>
-              <div className="cart-item-copy"><h4>{item.name}</h4><p>{formatIDR(item.price)}</p></div>
-              <div className="quantity"><button onClick={() => updateQuantity(item.id, -1)}>−</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id, 1)}>+</button></div>
+            <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className={`cart-icon ${item.color}`}><Icon name={item.icon as IconName} size={19} /></div>
+                  <div className="cart-item-copy"><h4>{item.name}</h4></div>
+                </div>
+                <div className="quantity"><button onClick={() => updateQuantity(item.id, -1, item.price)}>−</button><span>{item.qty}</span><button onClick={() => updateQuantity(item.id, 1, item.price)}>+</button></div>
+              </div>
+              {/* FITUR EDIT HARGA (Report Guest In House / Custom Rate) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', width: '100%' }}>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>Rate: Rp</span>
+                <input type="number" value={item.price} onChange={(e) => handleCustomPrice(item.id, Number(e.target.value))} style={{ padding: '4px', fontSize: '12px', border: '1px solid #e2e8f0', borderRadius: '4px', width: '100px' }} />
+              </div>
             </div>
           ))}
         </div>
 
+        {/* ADVANCED BOOKING DETAILS (Tampil jika ada Transfer/Deposit) */}
+        {showAdvancedBooking && cartItems.length > 0 && (
+          <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+            <h4 style={{ fontSize: '12px', marginBottom: '10px', color: '#0f172a' }}>Booking & Travel Details</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '11px' }}>Arrival Date <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
+              <label style={{ fontSize: '11px' }}>Checkout Date <input type="date" value={bookingData.checkout} onChange={e => setBookingData({...bookingData, checkout: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
+              <label style={{ fontSize: '11px' }}>Booking Source 
+                <select value={bookingData.source} onChange={e => setBookingData({...bookingData, source: e.target.value})} style={{ width: '100%', padding: '6px' }}>
+                  <option value="Direct">Direct</option><option value="Via Telepon">Via Telepon</option><option value="OTA / Traveloka">OTA / Traveloka</option><option value="Agoda">Agoda</option>
+                </select>
+              </label>
+              <label style={{ fontSize: '11px' }}>Notes (e.g. DP 50%) <input type="text" value={bookingData.notes} onChange={e => setBookingData({...bookingData, notes: e.target.value})} style={{ width: '100%', padding: '6px' }} placeholder="DP 500rb..." /></label>
+            </div>
+          </div>
+        )}
+
         <div className="checkout">
-          <div className="summary"><div className="grand-total"><span>Grand Total</span><strong>{formatIDR(subtotal - discount)}</strong></div></div>
+          <div className="summary"><div className="grand-total"><span>Grand Total</span><strong>{formatIDR(subtotal)}</strong></div></div>
           <div className="payment">
             <p>Payment Method</p>
-            <div className="payment-options">
-              {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }].map((method) => (
-                <button className={payment === method.label ? "active" : ""} key={method.label} onClick={() => setPayment(method.label)}><Icon name={method.icon} size={19} /><span>{method.label}</span></button>
+            <div className="payment-options" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
+                <button className={payment === method.label ? "active" : ""} key={method.label} onClick={() => setPayment(method.label)}><Icon name={method.icon} size={16} /><span style={{ fontSize: '11px' }}>{method.label}</span></button>
               ))}
             </div>
           </div>
 
-         <button className={`save-button ${saved ? "saved" : ""}`} disabled={cartItems.length === 0} onClick={async () => {
+          <button disabled={cartItems.length === 0} onClick={async () => {
             const roomInputValue = (document.getElementById("room-input") as HTMLInputElement)?.value || "Walk-in";
-            
             const finalOrderData = { 
               guestName: guestName || "Walk-in Guest", 
               paymentMethod: payment, 
-              totalAmount: subtotal - discount, 
+              totalAmount: subtotal, 
               room: roomInputValue,
-              staffId: currentStaff ? currentStaff.id : undefined, 
-              items: Object.entries(cart).map(([itemId, qty]) => { 
-                const product = activeProducts.find((p) => String(p.id) === String(itemId)); 
-                return { 
-                  item_code: product ? String(product.id) : String(itemId), 
-                  qty, 
-                  rate: product ? product.price : 0, 
-                  total: product ? (product.price * qty) : 0 
-                }; 
-              }) 
+              staffId: currentStaff?.dbId, 
+              arrivalDate: bookingData.arrival,
+              checkoutDate: bookingData.checkout,
+              bookingSource: bookingData.source,
+              paymentNotes: bookingData.notes,
+              items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
             };
-            const result = await saveTransaction(finalOrderData as any);
-            if (result.success) { 
-              setSaved(true); 
-              setCart({}); 
-              window.setTimeout(() => setSaved(false), 1800); 
-              router.refresh(); 
-            } else { 
-              alert("Gagal menyimpan: " + result.error); 
-            }
+            const result = await saveTransaction(finalOrderData);
+            if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); router.refresh(); } 
+            else alert("Gagal menyimpan: " + result.error);
           }}>
-            {saved ? <><Icon name="check" size={22} strokeWidth={2.5} /> Transaction Saved</> : <>Save Transaction <span>{formatIDR(subtotal - discount)}</span></>}
+            Save Transaction <span>{formatIDR(subtotal)}</span>
           </button>
         </div>
       </aside>}

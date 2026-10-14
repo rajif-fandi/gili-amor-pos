@@ -9,6 +9,10 @@ export async function saveTransaction(data: {
   totalAmount: number;
   room: string;
   staffId?: string;
+  arrivalDate?: string;      // <-- Parameter baru
+  checkoutDate?: string;     // <-- Parameter baru
+  bookingSource?: string;    // <-- Parameter baru
+  paymentNotes?: string;     // <-- Parameter baru
   items: { item_code: string; qty: number; rate: number; total: number }[];
 }) {
   try {
@@ -30,10 +34,10 @@ export async function saveTransaction(data: {
         await prisma.masterItem.create({
           data: {
             item_code: String(item.item_code),
-            item_service: `Product ${item.item_code}`, // Menggunakan nama kolom baru
-            default_rate: Number(item.rate),           // Menggunakan nama kolom baru
-            category: "CHARGE",                        // Menggunakan nama kolom baru (default fallback)
-            billing_type: "PER_UNIT",                  // Menggunakan nama kolom baru (default fallback)
+            item_service: `Product ${item.item_code}`, 
+            default_rate: Number(item.rate),           
+            category: "CHARGE",                        
+            billing_type: "PER_UNIT",                  
             desk: "coffee",
             notes: "Auto-generated",
             active: true
@@ -53,6 +57,10 @@ export async function saveTransaction(data: {
         payment_status: "PAID",
         room: data.room || "-", 
         staff_id: staffId,
+        arrival_date: data.arrivalDate,       // <-- Menyimpan ke DB
+        checkout_date: data.checkoutDate,     // <-- Menyimpan ke DB
+        booking_source: data.bookingSource,   // <-- Menyimpan ke DB
+        notes: data.paymentNotes,             // <-- Menyimpan ke DB
         
         details: {
           create: data.items.map((item) => ({
@@ -137,24 +145,22 @@ export async function deleteMasterItem(itemCode: string) {
   }
 }
 
-export async function addStaff(formData: { nama: string; posisi: string; shift: string; pin?: string }) {
+export async function addStaff(data: { nama: string; posisi: string; shift: string; pin?: string; role?: string }) {
   try {
     const newStaff = await prisma.staff.create({
       data: {
-        staff_id: `STF-${Date.now()}`,
-        nama: formData.nama,
-        posisi: formData.posisi,
-        shift: formData.shift || "Morning",
-        pin: formData.pin || "1234",
-        active: true,
+        staff_id: "STF-" + Date.now(), // <-- Perbaikan: Generate ID unik agar tidak error
+        nama: data.nama,
+        posisi: data.posisi,
+        shift: data.shift || "Morning",
+        pin: data.pin,
+        role: data.role || "Kasir",
       },
     });
-
     revalidatePath('/');
     return { success: true, data: newStaff };
   } catch (error: any) {
-    console.error("DETAIL ERROR ADD STAFF:", error);
-    return { success: false, error: error.message || "Gagal menambah staf ke database." };
+    return { success: false, error: error.message };
   }
 }
 
@@ -305,7 +311,7 @@ export async function updateMasterItem(data: {
   }
 }
 
-export async function updateStaff(data: { dbId: string; nama: string; posisi: string; shift: string; pin?: string }) {
+export async function updateStaff(data: { dbId: string; nama: string; posisi: string; shift: string; pin?: string; role?: string }) {
   try {
     const updatedStaff = await prisma.staff.update({
       where: { staff_id: data.dbId },
@@ -314,12 +320,12 @@ export async function updateStaff(data: { dbId: string; nama: string; posisi: st
         posisi: data.posisi,
         shift: data.shift || "Morning",
         pin: data.pin,
+        role: data.role || "Kasir",
       },
     });
     revalidatePath('/');
     return { success: true, data: updatedStaff };
   } catch (error: any) {
-    console.error("DETAIL ERROR UPDATE STAFF:", error);
-    return { success: false, error: error.message || "Gagal memperbarui staf." };
+    return { success: false, error: error.message };
   }
 }
