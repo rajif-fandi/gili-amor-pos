@@ -55,16 +55,17 @@ const formatIDR = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
 // GLOBAL PRINT STYLE
 const globalPrintStyle = `
+  /* INI KUNCI PERBAIKANNYA: Sembunyikan area cetak dari layar normal */
+  .hide-on-screen { display: none !important; }
+
   @media print {
     body * { visibility: hidden; }
-    .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; font-family: 'Helvetica Neue', Arial, sans-serif; color: #0f172a; visibility: visible; }
+    .print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 40px; font-family: 'Helvetica Neue', Arial, sans-serif; color: #0f172a; visibility: visible; }
     .print-area * { visibility: visible; }
     .hide-on-print { display: none !important; }
     
-    /* Perbaikan Jarak dan Header */
     .print-area h2 { text-align: center; font-size: 24px; margin-top: 0; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #0f172a; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* Perbaikan Tabel */
     .print-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
     .print-table th { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #cbd5e1; padding: 14px 12px; font-size: 13px; text-align: left; text-transform: uppercase; font-weight: bold; }
     .print-table td { border: 1px solid #cbd5e1; padding: 12px; font-size: 13px; vertical-align: top; }
