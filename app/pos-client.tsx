@@ -205,7 +205,7 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
             <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Category Revenue Distribution ({period})</h3>
             <ResponsiveContainer width="100%" height="85%">
               <PieChart>
-                <Pie data={catData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}>
+                <Pie data={catData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}>
                   {catData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
