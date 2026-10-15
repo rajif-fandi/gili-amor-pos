@@ -152,6 +152,7 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
     });
   }, [transactions, period]);
 
+  // 1. Data untuk Pie Chart (Category Revenue: Room, Rent, Boat, Retail)
   const catData = useMemo(() => {
     let rent = 0, boat = 0, buy = 0, charge = 0;
     filteredTx.forEach(t => {
@@ -170,8 +171,20 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
     ].filter(d => d.value > 0);
   }, [filteredTx]);
 
+  // 2. Data untuk Bar Chart (Payment Methods: Cash, Card, Bank Transfer, Room Charge)
+  const paymentBarData = useMemo(() => {
+    const methods = { Cash: 0, Card: 0, "Bank Transfer": 0, "Room Charge": 0 };
+    filteredTx.forEach(t => {
+      if (methods.hasOwnProperty(t.method)) {
+        methods[t.method as keyof typeof methods] += (t.amount || 0);
+      }
+    });
+    return Object.entries(methods).map(([name, value]) => ({ name, value })).filter(d => d.value > 0);
+  }, [filteredTx]);
+
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
   const todaysGuests = Array.from(new Set(filteredTx.filter(t => t.room !== "-").map(t => `${t.guest} (Room ${t.room})`)));
+  const openCases = cases.filter(c => c.status === "OPEN");
 
   return (
     <section className="workspace-screen">
@@ -181,26 +194,47 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
           <option value="Daily">Daily Report</option><option value="Weekly">Weekly Report</option><option value="Monthly">Monthly Report</option>
         </select>
       </header>
+
       <div className="workspace-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
+        
+        {/* Kolom Kiri: 2 Buah Chart */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '350px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '15px' }}>Category Revenue ({period})</h3>
-            <ResponsiveContainer width="100%" height="80%">
-              <BarChart data={catData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          
+          {/* CHART 1: PIE CHART (Category Revenue) */}
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '340px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Category Revenue Distribution ({period})</h3>
+            <ResponsiveContainer width="100%" height="85%">
+              <PieChart>
+                <Pie data={catData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}>
+                  {catData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* CHART 2: BAR CHART (Payment Methods: Cash, Card, Bank, Room Charge) */}
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '340px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Payment Method Breakdown ({period})</h3>
+            <ResponsiveContainer width="100%" height="85%">
+              <BarChart data={paymentBarData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(val) => `Rp${val/1000}k`} tick={{ fontSize: 11 }} width={60} />
                 <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
-                <Legend />
-                <Bar dataKey="value" fill="#3b82f6" name="Total Revenue">
-                  {catData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} /> ))}
+                <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]}>
+                  {paymentBarData.map((entry, index) => <Cell key={`bar-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
+
         </div>
+
+        {/* Kolom Kanan: In-House Guest & Agenda */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '350px' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '340px', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>In-House Guest ({period})</h3>
             {todaysGuests.length > 0 ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -208,7 +242,19 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
               </ul>
             ) : <p style={{ fontSize: '13px', color: '#64748b' }}>Belum ada tamu aktif.</p>}
           </div>
+
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '350px', overflowY: 'auto' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="clock" size={18} /> Agenda & Task (OPEN)</h3>
+            {openCases.length > 0 ? openCases.map((c: any) => (
+              <div key={c.case_no} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '10px', borderLeft: `4px solid ${c.priority === 'High' ? '#ef4444' : '#3b82f6'}` }}>
+                <strong style={{ fontSize: '13px', display: 'block' }}>{c.case_type} - Room {c.room}</strong>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>Assigned: {c.staff_name}</span>
+                <p style={{ fontSize: '12px', marginTop: '4px' }}>"{c.description}"</p>
+              </div>
+            )) : <p style={{ fontSize: '13px', color: '#64748b' }}>Semua tugas selesai.</p>}
+          </div>
         </div>
+
       </div>
     </section>
   );
