@@ -849,6 +849,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
       {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', borderLeft: '1px solid #e2e8f0' }}>
         
+        {/* 1. Header Pemesanan (Tetap di Atas) */}
         <div className="order-top" style={{ flexShrink: 0, padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
           <div className="order-title" style={{ marginBottom: '16px' }}><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -857,6 +858,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           </div>
         </div>
 
+        {/* 2. Daftar Belanjaan & Form Booking (Bisa di-scroll bersamaan) */}
         <div className="order-items" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {cartItems.map((item) => (
             <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px dashed #e2e8f0' }}>
@@ -877,13 +879,12 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
               </div>
             </div>
           ))}
-          {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
-        </div>
-
-        <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
           
+          {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
+
+          {/* FORM BOOKING DIPINDAHKAN KE SINI (Di bawah list barang) */}
           {showAdvancedBooking && cartItems.length > 0 && (
-            <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
               <h4 style={{ fontSize: '13px', marginBottom: '12px', color: '#0f172a' }}>Booking & Travel Details</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Arrival Date <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '4px', border: '1px solid #ccc' }} /></label>
@@ -897,7 +898,10 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
               </div>
             </div>
           )}
+        </div>
 
+        {/* 3. Area Checkout (Tetap menempel di bawah, lebih ramping) */}
+        <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
           <div style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <span style={{ fontSize: '14px', color: '#64748b' }}>Grand Total</span><strong style={{ fontSize: '20px', color: '#0f172a' }}>{formatIDR(subtotal)}</strong>
