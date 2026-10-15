@@ -3,8 +3,9 @@ import { useRouter } from "next/navigation";
 import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import * as XLSX from 'xlsx';
 
-type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank";
+type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
 
 function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: number; strokeWidth?: number; }) {
   if (name === "none") return <div style={{ width: size, height: size }} />;
@@ -44,12 +45,25 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: n
     water: <><path d="M12 2S5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13Z" /><path d="M9 16a3 3 0 0 0 3 2" /></>,
     shirt: <><path d="m8 4-5 3 3 5 2-1v10h8V11l2 1 3-5-5-3a4 4 0 0 1-8 0Z" /></>,
     check: <path d="m5 12 4 4L19 6" />,
-    printer: <><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></>
+    printer: <><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>
   };
   return <svg aria-hidden="true" fill="none" height={size} viewBox="0 0 24 24" width={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth}>{paths[name]}</svg>;
 }
 
 const formatIDR = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
+
+// GLOBAL PRINT STYLE
+const globalPrintStyle = `
+  @media print {
+    body * { visibility: hidden; }
+    .print-area, .print-area * { visibility: visible; }
+    .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; font-family: sans-serif; color: #000; }
+    .hide-on-print { display: none !important; }
+    .print-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .print-table th, .print-table td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 12px; }
+  }
+`;
 
 function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () => void }) {
   if (!transaction) return null;
@@ -91,8 +105,8 @@ function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () 
             <div style={{ textAlign: 'center', fontSize: '11px', marginTop: '20px' }}><p>Thank you for choosing Gili Amor!</p></div>
           </div>
           <div className="hide-on-print" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>Close</button>
-            <button onClick={() => window.print()} style={{ flex: 2, padding: '10px', background: '#10b981', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Icon name="printer" size={16} /> Print</button>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f1f5f9', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Close</button>
+            <button onClick={() => window.print()} style={{ flex: 2, padding: '10px', background: '#10b981', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print</button>
           </div>
         </div>
       </div>
@@ -117,88 +131,78 @@ const navItems = [
 ];
 
 function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: any[], cases?: any[] }) {
-  const chartData = useMemo(() => {
-    return Array.from({length: 7}).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      const dayTx = transactions.filter((t: any) => t.date && t.date.includes(dateStr));
-      return {
-        name: dateStr,
-        Cash: dayTx.filter((t: any) => t.method === 'Cash').reduce((s: number, t: any) => s + (t.amount || 0), 0),
-        Card: dayTx.filter((t: any) => t.method === 'Card').reduce((s: number, t: any) => s + (t.amount || 0), 0),
-        Bank: dayTx.filter((t: any) => t.method === 'Bank Transfer').reduce((s: number, t: any) => s + (t.amount || 0), 0),
-        Room: dayTx.filter((t: any) => t.method === 'Room Charge').reduce((s: number, t: any) => s + (t.amount || 0), 0),
-      };
+  const [period, setPeriod] = useState("Daily");
+  
+  const filteredTx = useMemo(() => {
+    const now = new Date();
+    return transactions.filter(t => {
+      const txDate = new Date(t.rawDate);
+      if (period === "Daily") return txDate.toDateString() === now.toDateString();
+      if (period === "Weekly") {
+        const lastWeek = new Date();
+        lastWeek.setDate(now.getDate() - 7);
+        return txDate >= lastWeek && txDate <= now;
+      }
+      if (period === "Monthly") return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      return true;
     });
-  }, [transactions]);
+  }, [transactions, period]);
 
-  const pieData = [
-    { name: 'Cash', value: chartData.reduce((s, d) => s + d.Cash, 0) },
-    { name: 'Card', value: chartData.reduce((s, d) => s + d.Card, 0) },
-    { name: 'Bank Transfer', value: chartData.reduce((s, d) => s + d.Bank, 0) },
-    { name: 'Room Charge', value: chartData.reduce((s, d) => s + d.Room, 0) }
-  ].filter(d => d.value > 0);
-  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'];
+  const catData = useMemo(() => {
+    let rent = 0, boat = 0, buy = 0, charge = 0;
+    filteredTx.forEach(t => {
+      t.items?.forEach((i:any) => {
+        if(i.category === "RENTAL") rent += i.total;
+        else if(i.category === "ACTIVITY" || i.category === "TRANSFER") boat += i.total;
+        else if(i.category === "RETAIL") buy += i.total;
+        else charge += i.total;
+      });
+    });
+    return [
+      { name: 'Room/Charge', value: charge },
+      { name: 'Rent', value: rent },
+      { name: 'Boat/Act', value: boat },
+      { name: 'Buy/Retail', value: buy },
+    ].filter(d => d.value > 0);
+  }, [filteredTx]);
 
-  const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const todaysGuests = Array.from(new Set(transactions.filter(t => t.date && t.date.includes(todayStr) && t.room !== "-").map(t => `${t.guest} (Room ${t.room})`)));
-  const openCases = cases.filter(c => c.status === "OPEN");
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+  const todaysGuests = Array.from(new Set(filteredTx.filter(t => t.room !== "-").map(t => `${t.guest} (Room ${t.room})`)));
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><p className="eyebrow">ANALYTICS</p><h1>Manager Dashboard</h1></div></header>
+      <header className="workspace-header">
+        <div><p className="eyebrow">ANALYTICS</p><h1>Manager Dashboard</h1></div>
+        <select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #ccc', fontWeight: 'bold' }}>
+          <option value="Daily">Daily Report</option><option value="Weekly">Weekly Report</option><option value="Monthly">Monthly Report</option>
+        </select>
+      </header>
       <div className="workspace-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '320px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '15px' }}>Revenue Trend (7 Days)</h3>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '350px' }}>
+            <h3 style={{ marginBottom: '20px', fontSize: '15px' }}>Category Revenue ({period})</h3>
             <ResponsiveContainer width="100%" height="80%">
-              <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <BarChart data={catData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(val) => `Rp${val/1000}k`} tick={{ fontSize: 11 }} width={60} />
                 <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
                 <Legend />
-                <Bar dataKey="Cash" stackId="a" fill="#10b981" />
-                <Bar dataKey="Card" stackId="a" fill="#3b82f6" />
-                <Bar dataKey="Bank" stackId="a" fill="#8b5cf6" />
-                <Bar dataKey="Room" stackId="a" fill="#f59e0b" />
+                <Bar dataKey="value" fill="#3b82f6" name="Total Revenue">
+                  {catData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} /> ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ marginBottom: '20px', fontSize: '15px', textAlign: 'center' }}>Revenue Distribution</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
-                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '300px' }}>
-              <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Today's In-House Guest</h3>
-              {todaysGuests.length > 0 ? (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {todaysGuests.map((g, i) => <li key={i} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px', fontWeight: 600 }}>{g}</li>)}
-                </ul>
-              ) : <p style={{ fontSize: '13px', color: '#64748b' }}>Belum ada tamu aktif hari ini.</p>}
-            </div>
-          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '350px', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="clock" size={18} /> Agenda & Task (OPEN)</h3>
-            {openCases.length > 0 ? openCases.map((c: any) => (
-              <div key={c.case_no} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '10px', borderLeft: `4px solid ${c.priority === 'High' ? '#ef4444' : '#3b82f6'}` }}>
-                <strong style={{ fontSize: '13px', display: 'block' }}>{c.case_type} - Room {c.room}</strong>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>Assigned: {c.staff_name}</span>
-                <p style={{ fontSize: '12px', marginTop: '4px' }}>"{c.description}"</p>
-              </div>
-            )) : <p style={{ fontSize: '13px', color: '#64748b' }}>Semua tugas selesai.</p>}
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '350px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>In-House Guest ({period})</h3>
+            {todaysGuests.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {todaysGuests.map((g, i) => <li key={i} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px', fontWeight: 600 }}>{g}</li>)}
+              </ul>
+            ) : <p style={{ fontSize: '13px', color: '#64748b' }}>Belum ada tamu aktif.</p>}
           </div>
         </div>
       </div>
@@ -223,24 +227,6 @@ function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: strin
             </button>
           ))}
         </div>
-        <section className="activity-panel" style={{ marginTop: '30px' }}>
-          <div className="panel-heading"><div><h2>Recent Activities Detail</h2></div></div>
-          <div className="activity-list">
-            {todaysTransactions.slice(0, 10).map((trx: any, index) => (
-              <div className="activity-row" key={index}>
-                <div className={`activity-icon blue`}><Icon name="reception" size={20} /></div>
-                <div className="activity-main">
-                  <strong>{trx.guest} (Room {trx.room})</strong>
-                  <span style={{ fontSize: '11px' }}>
-                    {trx.items?.map((i:any) => `${i.qty}x ${i.name}`).join(', ')} 
-                    {trx.notes && trx.notes !== "-" && ` | Note: ${trx.notes}`}
-                  </span>
-                </div>
-                <strong className="activity-amount">{formatIDR(trx.amount)}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     </section>
   );
@@ -254,48 +240,73 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const totalCash = displayRows.filter((t) => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalCard = displayRows.filter((t) => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalRoomCharge = displayRows.filter((t) => t.method === "Room Charge").reduce((sum, t) => sum + (t.amount || 0), 0);
-  const totalTransport = displayRows.reduce((sum, t) => {
-    const transportItems = (t.items || []).filter((item: any) => item.category === "TRANSFER");
-    return sum + transportItems.reduce((itemSum: number, item: any) => itemSum + (item.total || 0), 0);
-  }, 0);
+  const totalBank = displayRows.filter((t) => t.method === "Bank Transfer").reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const exportExcel = () => {
+    const dataToExport = displayRows.map(r => ({
+      ID: r.id, Date: r.date, Guest: r.guest, Room: r.room, Method: r.method, 
+      Items: r.items?.map((i:any) => `${i.qty}x ${i.name} (${i.category})`).join(', '),
+      Total: r.amount
+    }));
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DailyReport");
+    XLSX.writeFile(wb, `Daily_Report_${todayStr}.xlsx`);
+  };
 
   return (
     <section className="workspace-screen">
+      <style>{globalPrintStyle}</style>
       {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      <header className="workspace-header reports-header">
-        <div><p className="eyebrow">FINANCIAL OVERVIEW</p><h1>Daily Payment Report</h1><p className="header-subtitle">Review and reconcile today's guest payments.</p></div>
+      
+      <div className="print-area hide-on-screen">
+        <h2>Daily Payment Report - {todayStr}</h2>
+        <table className="print-table">
+          <thead><tr><th>Time</th><th>Receipt</th><th>Guest</th><th>Method</th><th>Items Detail (Rent/Boat/etc)</th><th>Total</th></tr></thead>
+          <tbody>
+            {displayRows.map(row => (
+              <tr key={row.id}>
+                <td>{row.time}</td><td>{row.receipt}</td><td>{row.guest}</td><td>{row.method}</td>
+                <td>{row.items?.map((i:any) => `${i.qty}x ${i.name} [${i.category}]`).join(', ')}</td>
+                <td>{formatIDR(row.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <header className="workspace-header reports-header hide-on-print">
+        <div><p className="eyebrow">FINANCIAL OVERVIEW</p><h1>Daily Payment Report</h1></div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={exportExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="download" size={16} /> Excel</button>
+          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print All</button>
+        </div>
       </header>
-      <div className="workspace-content">
+      
+      <div className="workspace-content hide-on-print">
         <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div>
-          </article>
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon blue" style={{ marginBottom: '12px' }}><Icon name="card" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Card</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCard)}</strong></div>
-          </article>
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon sand" style={{ marginBottom: '12px' }}><Icon name="room" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Room Charge</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalRoomCharge)}</strong></div>
-          </article>
-          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <div className="metric-icon sky" style={{ marginBottom: '12px' }}><Icon name="boat" size={23} /></div>
-            <div><p style={{ fontSize: '12px', color: '#64748b' }}>Transport Revenue</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalTransport)}</strong></div>
-          </article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}><div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div><div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div></article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}><div className="metric-icon blue" style={{ marginBottom: '12px' }}><Icon name="card" size={23} /></div><div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Card</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCard)}</strong></div></article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}><div className="metric-icon sand" style={{ marginBottom: '12px' }}><Icon name="room" size={23} /></div><div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Room Charge</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalRoomCharge)}</strong></div></article>
+          <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}><div className="metric-icon" style={{ marginBottom: '12px', background: '#e0e7ff', color: '#4f46e5' }}><Icon name="bank" size={23} /></div><div><p style={{ fontSize: '12px', color: '#64748b' }}>Bank Transfer</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalBank)}</strong></div></article>
         </div>
         <section className="report-table-panel">
           <div className="panel-heading"><div><h2>Payment Transactions (Today)</h2></div></div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Time</th><th>Receipt No</th><th>Guest Name</th><th>Method</th><th>Total Amount</th><th>Action</th></tr></thead>
+              <thead><tr><th>Time</th><th>Receipt No</th><th>Guest Name</th><th>Method</th><th>Items Detail (Rent/Boat/etc)</th><th>Total</th><th>Action</th></tr></thead>
               <tbody>
                 {displayRows.map((row) => (
                   <tr key={row.receipt || row.id}>
                     <td>{row.time}</td><td><strong>{row.receipt}</strong></td><td>{row.guest} <br/><small>Room {row.room}</small></td>
                     <td><span className={`payment-badge ${row.method === "Cash" ? "cash" : "card"}`}>{row.method}</span></td>
+                    <td style={{ maxWidth: '250px' }}>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        {row.items?.map((i:any, idx:number) => <div key={idx}>{i.qty}x {i.name} <span style={{color:'#94a3b8'}}>[{i.category}]</span></div>)}
+                      </div>
+                    </td>
                     <td><strong>{formatIDR(row.amount)}</strong></td>
-                    <td><button onClick={() => setSelectedReceipt(row)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e2e8f0', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}><Icon name="printer" size={14} /> Print</button></td>
+                    <td><button onClick={() => setSelectedReceipt(row)} style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Print</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -341,7 +352,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
             <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Prioritas</span><select value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})} style={{ width: '100%', padding: '8px' }}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High (Urgent)</option></select></label>
             <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Tugaskan Kepada</span><select value={formData.assigned_to} onChange={(e) => setFormData({...formData, assigned_to: e.target.value})} style={{ width: '100%', padding: '8px' }}>{staffList.map(staff => (<option key={staff.dbId} value={staff.dbId}>{staff.name}</option>))}</select></label>
             <label><span style={{ fontSize: '12px', fontWeight: 600 }}>Deskripsi</span><textarea required rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} style={{ width: '100%', padding: '8px' }} /></label>
-            <button className="submit-shift-button" type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan Tugas"}</button>
+            <button style={{ padding: '12px', background: '#10b981', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }} type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan Tugas"}</button>
           </form>
         </section>
         <section className="report-table-panel">
@@ -417,7 +428,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
               <div><span>Variance</span><small>{variance === 0 ? "Cash drawer is balanced" : variance > 0 ? "Cash over expected" : "Cash short"}</small></div>
               <strong>{variance > 0 ? "+" : ""}{formatIDR(variance)}</strong>
             </div>
-            <button className="submit-shift-button" onClick={handleSubmitClosing} disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit Shift Closing"}</button>
+            <button style={{ padding: '12px', background: '#10b981', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }} onClick={handleSubmitClosing} disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit Shift Closing"}</button>
           </div>
         </section>
         <section className="report-table-panel" style={{ marginTop: '24px' }}>
@@ -442,11 +453,48 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
   
   const displayRows = transactions.filter(row => row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase()));
   
+  const exportExcel = () => {
+    const dataToExport = displayRows.map(r => ({
+      ID: r.id, Date: r.date, Guest: r.guest, Room: r.room, Method: r.method, 
+      Items: r.items?.map((i:any) => `${i.qty}x ${i.name} (${i.category})`).join(', '),
+      Total: r.amount
+    }));
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Database");
+    XLSX.writeFile(wb, `Payment_Database.xlsx`);
+  };
+
   return (
     <section className="workspace-screen">
+      <style>{globalPrintStyle}</style>
       {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      <header className="workspace-header database-header"><div><p className="eyebrow">TRANSACTIONS</p><h1>Payment Database</h1></div></header>
-      <div className="workspace-content">
+      
+      <div className="print-area hide-on-screen">
+        <h2>Payment Database Master</h2>
+        <table className="print-table">
+          <thead><tr><th>Date</th><th>Receipt</th><th>Guest</th><th>Method</th><th>Items Detail (Rent/Boat/etc)</th><th>Total</th></tr></thead>
+          <tbody>
+            {displayRows.map(row => (
+              <tr key={row.id}>
+                <td>{row.date}</td><td>{row.receipt}</td><td>{row.guest}</td><td>{row.method}</td>
+                <td>{row.items?.map((i:any) => `${i.qty}x ${i.name} [${i.category}]`).join(', ')}</td>
+                <td>{formatIDR(row.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <header className="workspace-header database-header hide-on-print">
+        <div><p className="eyebrow">TRANSACTIONS</p><h1>Payment Database</h1></div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={exportExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="download" size={16} /> Excel</button>
+          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print All</button>
+        </div>
+      </header>
+      
+      <div className="workspace-content hide-on-print">
         <section className="report-table-panel">
           <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2>All Transactions</h2>
@@ -454,14 +502,19 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Trx ID</th><th>Date</th><th>Guest Name</th><th>Method</th><th>Total</th><th>Action</th></tr></thead>
+              <thead><tr><th>Trx ID</th><th>Date</th><th>Guest Name</th><th>Method</th><th>Items Detail</th><th>Total</th><th>Action</th></tr></thead>
               <tbody>
                 {displayRows.map((row) => (
                   <tr key={row.id}>
                     <td><strong>{row.id}</strong></td><td>{row.date}</td><td>{row.guest}</td>
                     <td><span className={`payment-badge ${row.method.toLowerCase()}`}>{row.method}</span></td>
+                    <td style={{ maxWidth: '250px' }}>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        {row.items?.map((i:any, idx:number) => <div key={idx}>{i.qty}x {i.name} <span style={{color:'#94a3b8'}}>[{i.category}]</span></div>)}
+                      </div>
+                    </td>
                     <td><strong>{formatIDR(row.total)}</strong></td>
-                    <td><button onClick={() => setSelectedReceipt(row)} style={{ padding: '6px 12px', cursor: 'pointer' }}>Print</button></td>
+                    <td><button onClick={() => setSelectedReceipt(row)} style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Print</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -476,8 +529,27 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
 function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><p className="eyebrow">ANALYTICS</p><h1>Operational Case Report</h1></div></header>
-      <div className="workspace-content">
+      <style>{globalPrintStyle}</style>
+      
+      <div className="print-area hide-on-screen">
+        <h2>Operational Case Report</h2>
+        <table className="print-table">
+          <thead><tr><th>Case No</th><th>Type</th><th>Guest/Room</th><th>Assigned</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+            {cases.map((c:any) => (
+              <tr key={c.case_no}>
+                <td>{c.case_no}</td><td>{c.case_type}</td><td>{c.nama_tamu} ({c.room})</td><td>{c.staff_name}</td><td>{c.status}</td><td>{c.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <header className="workspace-header hide-on-print">
+        <div><p className="eyebrow">ANALYTICS</p><h1>Operational Case Report</h1></div>
+        <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print Report</button>
+      </header>
+      <div className="workspace-content hide-on-print">
         <div className="analytics-metrics">
           <article><div><p>Total Cases</p><strong>{cases.length}</strong></div></article>
           <article><div><p>Resolved</p><strong>{cases.filter((c: any) => c.status !== "OPEN").length}</strong></div></article>
@@ -486,8 +558,11 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
           <div className="panel-heading"><h2>Recent Cases</h2></div>
           <div className="resolved-list">
             {cases.map((item: any) => (
-              <div className="resolved-row" key={item.case_no}>
-                <div><strong>{item.case_type}</strong><p>{item.case_no} · Room {item.room} · Staf: {item.staff_name}</p></div>
+              <div key={item.case_no} style={{ padding: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong style={{ fontSize: '14px', color: '#0f172a' }}>{item.case_type}</strong>
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0' }}>{item.case_no} · Room {item.room} · Staf: {item.staff_name}</p>
+                </div>
                 <span className={`payment-badge ${item.status === 'OPEN' ? 'room' : 'cash'}`}>{item.status}</span>
               </div>
             ))}
@@ -647,10 +722,11 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   });
   
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  // Logika baru: Hanya muncul jika nama barang ada unsur transfer, boat, airport, atau deposit
+  
+  // LOGIKA BARU: Hanya muncul jika ada kata transfer, deposit, boat, airport
   const showAdvancedBooking = cartItems.some(item => {
-    const nameStr = item.name.toLowerCase();
-    return nameStr.includes("airport") || nameStr.includes("transfer") || nameStr.includes("boat") || nameStr.includes("deposit");
+    const n = item.name.toLowerCase();
+    return n.includes("airport") || n.includes("transfer") || n.includes("boat") || n.includes("deposit");
   });
 
   const updateQuantity = (id: string, change: number, defaultPrice: number) => { 
@@ -669,7 +745,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
 
   return (
     <main className="pos-shell">
-      <aside className="navigation">
+      <aside className="navigation hide-on-print">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="brand-mark" style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}><img src="/logo-gili.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} /></div>
           <div><strong>GILI AMOR</strong><small>BOUTIQUE RESORT</small></div>
@@ -720,60 +796,72 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </div>
       </section>}
 
-      {/* --- BAGIAN INI SUDAH DIPERBAIKI LAYOUT DAN SCROLL-NYA --- */}
-      {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <div className="order-top" style={{ flexShrink: 0 }}>
-          <div className="order-title"><div><h2>Current Order</h2></div></div>
+      {/* --- STRUKTUR FLEXBOX DIPERBAIKI TOTAL --- */}
+      {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', borderLeft: '1px solid #e2e8f0' }}>
+        
+        {/* Header Pesanan */}
+        <div className="order-top" style={{ flexShrink: 0, padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+          <div className="order-title" style={{ marginBottom: '16px' }}><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label><span>Guest Name</span><input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Enter guest name" /></label>
-            <label><span>Room Number</span><input id="room-input" placeholder="e.g. Room A-01" defaultValue="Walk-in" /></label>
+            <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold' }}><span>Guest Name</span><input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Enter guest name" style={{ marginTop: '4px', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }} /></label>
+            <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold' }}><span>Room Number</span><input id="room-input" placeholder="e.g. Room A-01" defaultValue="Walk-in" style={{ marginTop: '4px', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }} /></label>
           </div>
         </div>
 
-        {/* Kotak daftar belanjaan (Bisa di-scroll tersendiri) */}
-        <div className="order-items" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+        {/* Daftar Belanjaan (Bisa di-scroll) */}
+        <div className="order-items" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {cartItems.map((item) => (
-            <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px dashed #e2e8f0' }}>
               <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div className={`cart-icon ${item.color}`}><Icon name={item.icon as IconName} size={19} /></div>
-                  <div className="cart-item-copy"><h4>{item.name}</h4></div>
+                  <div className={`cart-icon ${item.color}`} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px' }}><Icon name={item.icon as IconName} size={19} /></div>
+                  <div className="cart-item-copy"><h4 style={{ margin: 0, fontSize: '14px' }}>{item.name}</h4></div>
                 </div>
-                <div className="quantity"><button onClick={() => updateQuantity(item.id, -1, item.price)}>−</button><span>{item.qty}</span><button onClick={() => updateQuantity(item.id, 1, item.price)}>+</button></div>
+                <div className="quantity" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px' }}>
+                  <button onClick={() => updateQuantity(item.id, -1, item.price)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px' }}>−</button>
+                  <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.qty}</span>
+                  <button onClick={() => updateQuantity(item.id, 1, item.price)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px' }}>+</button>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', width: '100%' }}>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>Rate: Rp</span>
-                <input type="number" value={item.price} onChange={(e) => handleCustomPrice(item.id, Number(e.target.value))} style={{ padding: '4px', fontSize: '12px', border: '1px solid #e2e8f0', borderRadius: '4px', width: '100px' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', width: '100%' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>Rate: Rp</span>
+                <input type="number" value={item.price} onChange={(e) => handleCustomPrice(item.id, Number(e.target.value))} style={{ padding: '6px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', width: '120px' }} />
               </div>
             </div>
           ))}
+          {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
         </div>
 
-        {/* Kotak bawah (Booking & Checkout) yang menempel kaku di bawah */}
-        <div style={{ flexShrink: 0 }}>
+        {/* Area Checkout (Tetap menempel di bawah) */}
+        <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+          
           {showAdvancedBooking && cartItems.length > 0 && (
-            <div style={{ padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-              <h4 style={{ fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>Booking & Travel Details</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <label style={{ fontSize: '11px' }}>Arrival <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
-                <label style={{ fontSize: '11px' }}>Checkout <input type="date" value={bookingData.checkout} onChange={e => setBookingData({...bookingData, checkout: e.target.value})} style={{ width: '100%', padding: '6px' }} /></label>
-                <label style={{ fontSize: '11px', gridColumn: '1 / -1' }}>Booking Source 
-                  <select value={bookingData.source} onChange={e => setBookingData({...bookingData, source: e.target.value})} style={{ width: '100%', padding: '6px' }}>
-                    <option value="Direct">Direct</option><option value="Via Telepon">Via Telepon</option><option value="OTA / Traveloka">OTA / Traveloka</option><option value="Agoda">Agoda</option>
+            <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0' }}>
+              <h4 style={{ fontSize: '13px', marginBottom: '12px', color: '#0f172a' }}>Booking & Travel Details</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Arrival Date <input type="date" value={bookingData.arrival} onChange={e => setBookingData({...bookingData, arrival: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '4px', border: '1px solid #ccc' }} /></label>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Checkout Date <input type="date" value={bookingData.checkout} onChange={e => setBookingData({...bookingData, checkout: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '4px', border: '1px solid #ccc' }} /></label>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', gridColumn: '1 / -1' }}>Booking Source 
+                  <select value={bookingData.source} onChange={e => setBookingData({...bookingData, source: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '4px', border: '1px solid #ccc' }}>
+                    <option value="Direct">Direct</option><option value="Via Telepon">Via Telepon</option><option value="OTA">OTA</option><option value="Hotel Collect">Hotel Collect</option>
                   </select>
                 </label>
-                <label style={{ fontSize: '11px', gridColumn: '1 / -1' }}>Notes (e.g. DP 50%) <input type="text" value={bookingData.notes} onChange={e => setBookingData({...bookingData, notes: e.target.value})} style={{ width: '100%', padding: '6px' }} placeholder="DP 500rb..." /></label>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', gridColumn: '1 / -1' }}>Notes (e.g. DP 50%) <input type="text" value={bookingData.notes} onChange={e => setBookingData({...bookingData, notes: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '4px', border: '1px solid #ccc' }} placeholder="DP 500rb..." /></label>
               </div>
             </div>
           )}
 
-          <div className="checkout">
-            <div className="summary"><div className="grand-total"><span>Grand Total</span><strong>{formatIDR(subtotal)}</strong></div></div>
-            <div className="payment">
-              <p>Payment Method</p>
-              <div className="payment-options" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>Grand Total</span><strong style={{ fontSize: '20px', color: '#0f172a' }}>{formatIDR(subtotal)}</strong>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>Payment Method</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
-                  <button className={payment === method.label ? "active" : ""} key={method.label} onClick={() => setPayment(method.label)}><Icon name={method.icon} size={16} /><span style={{ fontSize: '11px' }}>{method.label}</span></button>
+                  <button key={method.label} onClick={() => setPayment(method.label)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', border: payment === method.label ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: payment === method.label ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
+                    <Icon name={method.icon} size={16} /><span style={{ fontSize: '12px', fontWeight: 'bold', color: payment === method.label ? '#1e3a8a' : '#475569' }}>{method.label}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -781,22 +869,16 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
             <button disabled={cartItems.length === 0} onClick={async () => {
               const roomInputValue = (document.getElementById("room-input") as HTMLInputElement)?.value || "Walk-in";
               const finalOrderData = { 
-                guestName: guestName || "Walk-in Guest", 
-                paymentMethod: payment, 
-                totalAmount: subtotal, 
-                room: roomInputValue,
-                staffId: currentStaff?.dbId, 
-                arrivalDate: bookingData.arrival,
-                checkoutDate: bookingData.checkout,
-                bookingSource: bookingData.source,
-                paymentNotes: bookingData.notes,
+                guestName: guestName || "Walk-in Guest", paymentMethod: payment, totalAmount: subtotal, room: roomInputValue,
+                staffId: currentStaff?.dbId, arrivalDate: bookingData.arrival, checkoutDate: bookingData.checkout, bookingSource: bookingData.source, paymentNotes: bookingData.notes,
                 items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
               };
               const result = await saveTransaction(finalOrderData);
               if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); router.refresh(); } 
               else alert("Gagal menyimpan: " + result.error);
-            }}>
-              Save Transaction <span>{formatIDR(subtotal)}</span>
+            }} 
+            style={{ width: '100%', padding: '16px', background: cartItems.length === 0 ? '#cbd5e1' : '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: cartItems.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '15px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Save Transaction</span> <span>{formatIDR(subtotal)}</span>
             </button>
           </div>
         </div>
