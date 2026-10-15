@@ -53,11 +53,8 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: { name: IconName; size?: n
 
 const formatIDR = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
-// GLOBAL PRINT STYLE
 const globalPrintStyle = `
-  /* INI KUNCI PERBAIKANNYA: Sembunyikan area cetak dari layar normal */
   .hide-on-screen { display: none !important; }
-
   @media print {
     body * { visibility: hidden; }
     .print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 40px; font-family: 'Helvetica Neue', Arial, sans-serif; color: #0f172a; visibility: visible; }
@@ -217,9 +214,19 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
   );
 }
 
-function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: string) => void, transactions?: any[] }) {
+function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: (page: string) => void, transactions?: any[], cases?: any[] }) {
+  const router = useRouter();
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
+  
+  const transportTasks = cases.filter((c: any) => c.status === "OPEN" && c.case_type === "Guest Arrival / Transport");
+
+  const handleResolveTask = async (caseNo: string) => {
+    if(confirm("Tandai jadwal penjemputan/layanan ini SELESAI?")) {
+      const result = await resolveCase(caseNo);
+      if (result.success) router.refresh();
+    }
+  };
 
   return (
     <section className="workspace-screen">
@@ -234,6 +241,43 @@ function HomeDashboard({ onLaunch, transactions = [] }: { onLaunch: (page: strin
             </button>
           ))}
         </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '30px' }}>
+          <section className="activity-panel">
+            <div className="panel-heading"><div><h2>Recent Activities Detail</h2></div></div>
+            <div className="activity-list">
+              {todaysTransactions.slice(0, 10).map((trx: any, index) => (
+                <div className="activity-row" key={index}>
+                  <div className={`activity-icon blue`}><Icon name="reception" size={20} /></div>
+                  <div className="activity-main">
+                    <strong>{trx.guest} (Room {trx.room})</strong>
+                    <span style={{ fontSize: '11px' }}>
+                      {trx.items?.map((i:any) => `${i.qty}x ${i.name}`).join(', ')} 
+                      {trx.notes && trx.notes !== "-" && ` | Note: ${trx.notes}`}
+                    </span>
+                  </div>
+                  <strong className="activity-amount">{formatIDR(trx.amount)}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="activity-panel" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
+            <div className="panel-heading"><div><h2 style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="bell" size={18} /> Arrival & Transport Alerts</h2></div></div>
+            <div className="activity-list" style={{ padding: '16px' }}>
+              {transportTasks.length > 0 ? transportTasks.map((t: any) => (
+                <div key={t.case_no} style={{ background: '#fff', padding: '12px', borderRadius: '8px', marginBottom: '12px', borderLeft: '4px solid #f59e0b', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>{t.nama_tamu} (Room {t.room})</strong>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0' }}>{t.description}</p>
+                  </div>
+                  <button onClick={() => handleResolveTask(t.case_no)} style={{ padding: '8px 12px', background: '#10b981', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Icon name="check" size={14} /> Selesai</button>
+                </div>
+              )) : <p style={{ fontSize: '13px', color: '#d97706' }}>Belum ada jadwal penjemputan/layanan yang terbuka.</p>}
+            </div>
+          </section>
+        </div>
+
       </div>
     </section>
   );
@@ -730,7 +774,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
   
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
   
-  // LOGIKA BARU: Hanya muncul jika ada kata transfer, deposit, boat, airport
   const showAdvancedBooking = cartItems.some(item => {
     const n = item.name.toLowerCase();
     return n.includes("airport") || n.includes("transfer") || n.includes("boat") || n.includes("deposit");
@@ -774,7 +817,8 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </div>
       </aside>
 
-      {activePage === "Launchpad" && <HomeDashboard onLaunch={(page) => setActivePage(page)} transactions={initialTransactions} />}
+      {/* --- INI BAGIAN YANG DIPERBAIKI --- */}
+      {activePage === "Launchpad" && <HomeDashboard onLaunch={(page) => setActivePage(page)} transactions={initialTransactions} cases={initialCases} />}
       {activePage === "Dashboard" && isAdmin && <DashboardAnalytics transactions={initialTransactions} cases={initialCases} />}
       {activePage === "Reports" && isAdmin && <ReportsDashboard transactions={initialTransactions} />}
       {activePage === "Case / Follow-up" && <CasesDashboard staffList={initialStaff} cases={initialCases} />}
@@ -803,10 +847,8 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </div>
       </section>}
 
-      {/* --- STRUKTUR FLEXBOX DIPERBAIKI TOTAL --- */}
       {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', borderLeft: '1px solid #e2e8f0' }}>
         
-        {/* Header Pesanan */}
         <div className="order-top" style={{ flexShrink: 0, padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
           <div className="order-title" style={{ marginBottom: '16px' }}><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -815,7 +857,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           </div>
         </div>
 
-        {/* Daftar Belanjaan (Bisa di-scroll) */}
         <div className="order-items" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {cartItems.map((item) => (
             <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px dashed #e2e8f0' }}>
@@ -839,7 +880,6 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
           {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
         </div>
 
-        {/* Area Checkout (Tetap menempel di bawah) */}
         <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
           
           {showAdvancedBooking && cartItems.length > 0 && (

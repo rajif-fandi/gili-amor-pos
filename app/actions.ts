@@ -9,10 +9,10 @@ export async function saveTransaction(data: {
   totalAmount: number;
   room: string;
   staffId?: string;
-  arrivalDate?: string;      // <-- Parameter baru
-  checkoutDate?: string;     // <-- Parameter baru
-  bookingSource?: string;    // <-- Parameter baru
-  paymentNotes?: string;     // <-- Parameter baru
+  arrivalDate?: string;      
+  checkoutDate?: string;     
+  bookingSource?: string;    
+  paymentNotes?: string;     
   items: { item_code: string; qty: number; rate: number; total: number }[];
 }) {
   try {
@@ -57,10 +57,10 @@ export async function saveTransaction(data: {
         payment_status: "PAID",
         room: data.room || "-", 
         staff_id: staffId,
-        arrival_date: data.arrivalDate,       // <-- Menyimpan ke DB
-        checkout_date: data.checkoutDate,     // <-- Menyimpan ke DB
-        booking_source: data.bookingSource,   // <-- Menyimpan ke DB
-        notes: data.paymentNotes,             // <-- Menyimpan ke DB
+        arrival_date: data.arrivalDate,       
+        checkout_date: data.checkoutDate,     
+        booking_source: data.bookingSource,   
+        notes: data.paymentNotes,             
         
         details: {
           create: data.items.map((item) => ({
@@ -74,6 +74,29 @@ export async function saveTransaction(data: {
         },
       },
     });
+
+    // --- FITUR BARU: AUTO-CREATE TUGAS JEMPUT/LAYANAN ---
+    const needsPickupTask = data.items.some(item => {
+      const n = item.item_code.toLowerCase();
+      return n.includes("airport") || n.includes("transfer") || n.includes("boat") || n.includes("deposit");
+    });
+
+    if (needsPickupTask && (data.arrivalDate || data.checkoutDate)) {
+      await prisma.caseFollowUp.create({
+        data: {
+          case_no: "TASK-" + Date.now(),
+          desk: "Front Office",
+          case_type: "Guest Arrival / Transport",
+          nama_tamu: data.guestName,
+          room: data.room || "-",
+          priority: "High",
+          status: "OPEN",
+          description: `Arrival: ${data.arrivalDate || "-"}. Checkout: ${data.checkoutDate || "-"}. Note: ${data.paymentNotes || "-"}`,
+          assigned_to: staffId,
+        }
+      });
+    }
+    // ----------------------------------------------------
 
     revalidatePath('/');
     return { success: true, data: newTransaction };
@@ -95,7 +118,7 @@ export async function addMasterItem(data: {
   try {
     const newItem = await prisma.masterItem.create({
       data: {
-        item_code: data.item_code,       // Diinput manual dari frontend
+        item_code: data.item_code,       
         desk: data.desk || "-",
         category: data.category,
         item_service: data.item_service, 
@@ -110,7 +133,6 @@ export async function addMasterItem(data: {
     return { success: true, data: newItem };
   } catch (error: any) {
     console.error("DETAIL ERROR PRISMA MASTER ITEM:", error);
-    // Validasi jika Item Code yang diketik sudah pernah dipakai
     if (error.code === 'P2002') {
       return { success: false, error: "Item Code sudah digunakan! Silakan buat kode unik lainnya." };
     }
@@ -120,7 +142,6 @@ export async function addMasterItem(data: {
 
 export async function deleteMasterItem(itemCode: string) {
   try {
-    // 1. Coba HAPUS PERMANEN (Hard Delete) dari database Supabase terlebih dahulu
     await prisma.masterItem.delete({
       where: { item_code: String(itemCode) },
     });
@@ -128,8 +149,6 @@ export async function deleteMasterItem(itemCode: string) {
     revalidatePath('/');
     return { success: true };
   } catch (error: any) {
-    // 2. Jika error (biasanya karena barang sudah terikat di riwayat struk/transaksi tamu),
-    // maka kita cegah database rusak dengan melakukan SOFT DELETE (menyembunyikannya dari web)
     try {
       await prisma.masterItem.update({
         where: { item_code: String(itemCode) },
@@ -149,7 +168,7 @@ export async function addStaff(data: { nama: string; posisi: string; shift: stri
   try {
     const newStaff = await prisma.staff.create({
       data: {
-        staff_id: "STF-" + Date.now(), // <-- Perbaikan: Generate ID unik agar tidak error
+        staff_id: "STF-" + Date.now(), 
         nama: data.nama,
         posisi: data.posisi,
         shift: data.shift || "Morning",
