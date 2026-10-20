@@ -789,7 +789,12 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
     else router.push("/login");
   }, [router]);
 
-  const isAdmin = currentStaff?.role === "Admin" || currentStaff?.posisi?.toLowerCase().includes("admin");
+  // --- KUNCI PERBAIKANNYA DI SINI ---
+  // Kita tarik data 'role' super segar langsung dari database berdasarkan PIN, mengabaikan memori browser yang usang
+  const realStaffData = initialStaff?.find(s => s.pin === currentStaff?.pin) || currentStaff;
+  
+  // Sistem sekarang dijamin membaca hak akses asli dari database
+  const isAdmin = realStaffData?.role === "Admin" || realStaffData?.position?.toLowerCase().includes("admin") || realStaffData?.posisi?.toLowerCase().includes("admin");
   const allowedNavs = navItems.filter(item => item.roles.includes(isAdmin ? "Admin" : "Kasir"));
 
   const [activeCategory, setActiveCategory] = useState("All Items");
@@ -856,8 +861,13 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
         </nav>
         <div className="staff-card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="avatar" style={{ background: isAdmin ? '#3b82f6' : '#10b981' }}>{currentStaff ? currentStaff.nama.slice(0, 2).toUpperCase() : "GA"}</div>
-            <div style={{ overflow: 'hidden' }}><strong style={{ display: 'block' }}>{currentStaff?.nama}</strong><span style={{ fontSize: '11px' }}>{currentStaff?.role}</span></div>
+            <div className="avatar" style={{ background: isAdmin ? '#3b82f6' : '#10b981' }}>
+              {realStaffData ? (realStaffData.name || realStaffData.nama)?.slice(0, 2).toUpperCase() : "GA"}
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <strong style={{ display: 'block' }}>{realStaffData?.name || realStaffData?.nama}</strong>
+              <span style={{ fontSize: '11px' }}>{isAdmin ? "Admin" : "Kasir"}</span>
+            </div>
           </div>
           <button onClick={() => { localStorage.removeItem("gili_amor_staff"); router.push("/login"); }} style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Logout</button>
         </div>
