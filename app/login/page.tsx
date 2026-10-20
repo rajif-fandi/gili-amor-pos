@@ -19,10 +19,12 @@ export default function LoginPage() {
       const staff: any = result.data;
       // SIMPAN SESI STAF KE BROWSER LOCALSTORAGE
       localStorage.setItem("gili_amor_staff", JSON.stringify({
-        id: staff.staff_id,
+        dbId: staff.staff_id,   // <--- Ubah 'id' menjadi 'dbId' agar cocok dengan pos-client
         nama: staff.nama,
         posisi: staff.posisi,
-        shift: staff.shift
+        shift: staff.shift,
+        role: staff.role,       // <--- INI KUNCI UTAMANYA: Simpan hak aksesnya!
+        pin: staff.pin          // <--- Tambahkan PIN agar pencocokan database berhasil
       }));
 
       alert(`Selamat datang, ${staff.nama}!`);
