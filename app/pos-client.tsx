@@ -1002,7 +1002,7 @@ export default function POSClientApp({
       {activePage === "Case Report" && isAdmin && <CaseReportDashboard cases={initialCases} />}
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
-      {activePage === "Bike Rental" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "Bike Dashboard" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">
