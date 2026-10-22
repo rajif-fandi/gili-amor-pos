@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { submitBikeRental } from "../actions";
 
-// Menghindari error SSR pada canvas tanda tangan
 const SignatureCanvas = dynamic(() => import("react-signature-canvas"), { ssr: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -41,19 +40,16 @@ export default function BikeRentalForm() {
 
     setIsSubmitting(true);
     try {
-     // 1. Upload Foto Sepeda ke Supabase
       const photoName = `bike-${Date.now()}-${photo.name}`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
       const photoUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gili-storage/${photoName}`;
 
-      // 2. Upload Tanda Tangan ke Supabase
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
       await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
       const sigUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gili-storage/${sigName}`;
 
-      // 3. Simpan Data ke Database (Prisma)
       const res = await submitBikeRental({
         ...formData,
         photo_url: photoUrl,
@@ -70,13 +66,11 @@ export default function BikeRentalForm() {
 
   if (isSuccess) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "20px", fontFamily: "sans-serif" }}>
-        <div style={{ background: "#fff", padding: "40px", borderRadius: "16px", textAlign: "center", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
+      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", fontFamily: "sans-serif", boxSizing: "border-box" }}>
+        <div style={{ background: "#fff", padding: "30px 20px", borderRadius: "16px", textAlign: "center", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
           <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
           <h2 style={{ color: "#0f172a", marginBottom: "10px" }}>Order Submitted!</h2>
           <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6", marginBottom: "24px" }}>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
-          
-          {/* TOMBOL UNTUK KEMBALI MENGISI FORM BARU */}
           <button 
             onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }} 
             style={{ width: "100%", padding: "12px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
@@ -88,37 +82,37 @@ export default function BikeRentalForm() {
   }
 
   return (
-    <main style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif" }}>
-      <div style={{ maxWidth: "600px", margin: "0 auto", background: "#fff", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+    <main style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "12px", fontFamily: "sans-serif", boxSizing: "border-box", width: "100%", overflowX: "hidden" }}>
+      <div style={{ width: "100%", maxWidth: "650px", margin: "0 auto", background: "#fff", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", boxSizing: "border-box" }}>
         
-        <div style={{ backgroundColor: "#0f172a", padding: "24px", color: "#fff", textAlign: "center" }}>
-          <img src="/logo-gili.png" alt="Gili Amor" style={{ height: "50px", marginBottom: "12px", objectFit: "contain" }} />
+        <div style={{ backgroundColor: "#0f172a", padding: "20px", color: "#fff", textAlign: "center" }}>
+          <img src="/logo-gili.png" alt="Gili Amor" style={{ height: "45px", marginBottom: "10px", objectFit: "contain" }} />
           <h1 style={{ fontSize: "18px", margin: "0 0 4px 0", letterSpacing: "1px" }}>GILIAMOR BIKE</h1>
           <p style={{ fontSize: "12px", opacity: 0.8, margin: 0 }}>DIGITAL RENTAL & AGREEMENT FORM</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+        <form onSubmit={handleSubmit} style={{ padding: "16px", boxSizing: "border-box", width: "100%" }}>
           <h3 style={{ fontSize: "14px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155" }}>GUEST INFORMATION</h3>
           
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
             <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold" }}>
               ROOM NUMBER
-              <input required value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="e.g. 27" style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
+              <input required value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="e.g. 27" style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", width: "100%", boxSizing: "border-box" }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold" }}>
               FULL NAME
-              <input required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Guest Name" style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
+              <input required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Guest Name" style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", width: "100%", boxSizing: "border-box" }} />
             </label>
           </div>
           
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "24px" }}>
+          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "20px" }}>
             WHATSAPP NUMBER
-            <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="e.g. +628..." style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
+            <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="e.g. +628..." style={{ marginTop: "4px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", width: "100%", boxSizing: "border-box" }} />
           </label>
 
           <h3 style={{ fontSize: "14px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155" }}>BICYCLE SELECTION</h3>
           
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
             <label style={{ display: "flex", alignItems: "center", padding: "12px", border: formData.bike_type === "Standard Bicycle" ? "2px solid #3b82f6" : "1px solid #cbd5e1", borderRadius: "8px", background: formData.bike_type === "Standard Bicycle" ? "#eff6ff" : "#fff", cursor: "pointer" }}>
               <input type="radio" value="Standard Bicycle" checked={formData.bike_type === "Standard Bicycle"} onChange={e => setFormData({...formData, bike_type: e.target.value})} style={{ marginRight: "12px" }} />
               <div><strong style={{ display: "block", fontSize: "14px" }}>Standard Bicycle</strong><span style={{ fontSize: "12px", color: "#64748b" }}>IDR 50,000 / Day</span></div>
@@ -138,16 +132,16 @@ export default function BikeRentalForm() {
             </div>
           </label>
 
-          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginBottom: "24px", textAlign: "center" }}>
+          <div style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginBottom: "20px", textAlign: "center" }}>
             <span style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Estimated Price:</span>
-            <strong style={{ fontSize: "20px", color: "#0f172a" }}>Rp {estimatedPrice.toLocaleString("id-ID")}</strong>
+            <strong style={{ fontSize: "18px", color: "#0f172a" }}>Rp {estimatedPrice.toLocaleString("id-ID")}</strong>
           </div>
 
           <h3 style={{ fontSize: "14px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155" }}>DOCUMENTATION & AGREEMENT</h3>
 
           <div style={{ marginBottom: "20px" }}>
             <span style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "8px" }}>PRE-RENTAL BIKE CONDITION PHOTO *</span>
-            <label style={{ display: "block", padding: "20px", textAlign: "center", border: "2px dashed #cbd5e1", borderRadius: "8px", cursor: "pointer", background: "#f8fafc" }}>
+            <label style={{ display: "block", padding: "16px", textAlign: "center", border: "2px dashed #cbd5e1", borderRadius: "8px", cursor: "pointer", background: "#f8fafc" }}>
               {photoPreview ? (
                 <img src={photoPreview} alt="Preview" style={{ width: "100%", maxHeight: "200px", objectFit: "contain", borderRadius: "4px" }} />
               ) : (
@@ -169,10 +163,10 @@ export default function BikeRentalForm() {
               <span style={{ fontSize: "12px", fontWeight: "bold" }}>GUEST SIGNATURE *</span>
               <button type="button" onClick={clearSignature} style={{ fontSize: "11px", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "bold" }}>Clear Signature</button>
             </div>
-            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", overflow: "hidden" }}>
-            {/* @ts-ignore */}
-            <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ width: 500, height: 150, style: { width: "100%", display: "block" } }} />
-          </div>
+            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", overflow: "hidden", width: "100%" }}>
+              {/* @ts-ignore */}
+              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ width: 500, height: 150, style: { width: "100%", height: "150px", display: "block" } }} />
+            </div>
             <p style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>I have read, understand, and certify my compliance by signature.</p>
           </div>
 

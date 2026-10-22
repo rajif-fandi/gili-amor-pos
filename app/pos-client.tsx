@@ -834,53 +834,64 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
             {bikes.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#64748b' }}>Belum ada data penyewaan sepeda.</p>
             ) : bikes.map((bike: any) => (
-              <div key={bike.id} style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <div key={bike.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <div>
                     <strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong>
                     <span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <strong style={{ display: 'block', color: bike.bike_type.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong>
+                    <strong style={{ display: 'block', color: bike.bike_type?.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong>
                     <span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span>
                   </div>
                 </div>
 
                 {bike.status === "PENDING" ? (
-                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Nomor/Warna Unit
                       <input name="unit" required placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Harga Final (Rp)
-                      <input name="price" type="number" required defaultValue={bike.bike_type.includes("Electric") ? 200000 * bike.duration_days : 50000 * bike.duration_days} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                      <input name="price" type="number" required defaultValue={bike.bike_type?.includes("Electric") ? 200000 * bike.duration_days : 50000 * bike.duration_days} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Metode Bayar
                       <select name="payment" required style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
                         <option value="Cash">Cash</option><option value="Card/Qris">Card / QRIS</option><option value="Room Charge">Room Charge</option>
                       </select>
                     </label>
-                    <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '35px' }}>Proses (Selesai)</button>
+                    <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '38px' }}>Proses (Selesai)</button>
                   </form>
                 ) : (
-                  <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE (Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
                     <strong style={{ color: '#065f46' }}>Total: {formatIDR(bike.total_price)} ({bike.payment_method})</strong>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '20px', marginTop: '16px' }}>
-                  <div style={{ flex: 1 }}>
+                {/* BAGIAN FOTO & TANDA TANGAN */}
+                <div style={{ display: 'flex', gap: '20px', marginTop: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '220px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>FOTO KONDISI SEPEDA:</span>
-                    <img src={bike.photo_url} alt="Kondisi" style={{ height: '90px', borderRadius: '4px', display: 'block', marginTop: '4px', border: '1px solid #cbd5e1', objectFit: 'cover' }} />
+                    {bike.photo_url ? (
+                      <a href={bike.photo_url} target="_blank" rel="noopener noreferrer">
+                        <img src={bike.photo_url} alt="Kondisi Sepeda" style={{ width: '100%', height: '140px', borderRadius: '6px', display: 'block', marginTop: '4px', border: '1px solid #cbd5e1', objectFit: 'cover', cursor: 'pointer' }} />
+                      </a>
+                    ) : (
+                      <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada foto</p>
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: '220px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TANDA TANGAN KONTRAK TAMU:</span>
-                    <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', padding: '4px', height: '90px', display: 'flex', alignItems: 'center' }}>
-                      <img src={bike.signature_url} alt="Tanda Tangan" style={{ maxHeight: '100%', maxWidth: '100%', display: 'block', margin: '0 auto' }} />
-                    </div>
+                    {bike.signature_url ? (
+                      <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '4px', padding: '8px', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img src={bike.signature_url} alt="Tanda Tangan Tamu" style={{ maxHeight: '100%', maxWidth: '100%', display: 'block' }} />
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada tanda tangan</p>
+                    )}
                   </div>
                 </div>
               </div>
