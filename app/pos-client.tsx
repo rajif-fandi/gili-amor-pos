@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase } from "./actions";
+import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase, processBikeRental } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -121,6 +121,7 @@ function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () 
 const navItems = [
   { label: "Launchpad", icon: "home" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Dashboard", icon: "dashboard" as IconName, roles: ["Admin"] },
+  { label: "Bike Rental", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Reception", icon: "reception" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Rent", icon: "rent" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
@@ -778,10 +779,128 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   );
 }
 
-export default function POSClientApp({ initialProducts, initialStaff, initialTransactions, initialShiftClosings, initialCases = [] }: { initialProducts?: any[]; initialStaff?: any[]; initialTransactions?: any[]; initialShiftClosings?: any[]; initialCases?: any[]; }) {
+function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[], setBikes: any, staffName: string }) {
+  const completedBikes = bikes.filter((b: any) => b.status === "DONE");
+  const grossIncome = completedBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
+  const jatahBanana = grossIncome * 0.50;
+  const jatahHotel = grossIncome * 0.25;
+  const jatahPakJoe = grossIncome - jatahBanana - jatahHotel;
+
+  const handleProcessBike = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const unit_no = form.unit.value;
+    const total_price = Number(form.price.value);
+    const payment_method = form.payment.value;
+
+    if (!confirm("Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.")) return;
+
+    const res = await processBikeRental(id, { unit_no, total_price, payment_method, staff_name: staffName });
+    if (res.success) {
+      setBikes(bikes.map((b: any) => b.id === id ? res.data : b));
+      alert("Pesanan sukses diproses ke dalam laporan!");
+    } else alert("Gagal memproses: " + res.error);
+  };
+
+  return (
+    <section className="workspace-screen">
+      <header className="workspace-header"><div><p className="eyebrow">GILIAMOR BIKE</p><h1>Dashboard Laporan E-Bike</h1></div></header>
+      <div className="workspace-content">
+        
+        {/* KOTAK PROFIT SHARING */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
+            <span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{formatIDR(grossIncome)}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>BERSIH MR. BANANA (50%)</span>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahBanana)}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL (25%)</span>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotel)}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>BERSIH PAK JOE (25%)</span>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div>
+          </div>
+        </div>
+
+        {/* LIST PENYEWAAN SEPEDA */}
+        <section className="report-table-panel">
+          <div className="panel-heading"><h2>Daftar Pesanan Sepeda Tamu</h2></div>
+          <div style={{ padding: '20px' }}>
+            {bikes.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#64748b' }}>Belum ada data penyewaan sepeda.</p>
+            ) : bikes.map((bike: any) => (
+              <div key={bike.id} style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div>
+                    <strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <strong style={{ display: 'block', color: bike.bike_type.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span>
+                  </div>
+                </div>
+
+                {bike.status === "PENDING" ? (
+                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                      Nomor/Warna Unit
+                      <input name="unit" required placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                      Harga Final (Rp)
+                      <input name="price" type="number" required defaultValue={bike.bike_type.includes("Electric") ? 200000 * bike.duration_days : 50000 * bike.duration_days} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1 }}>
+                      Metode Bayar
+                      <select name="payment" required style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                        <option value="Cash">Cash</option><option value="Card/Qris">Card / QRIS</option><option value="Room Charge">Room Charge</option>
+                      </select>
+                    </label>
+                    <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '35px' }}>Proses (Selesai)</button>
+                  </form>
+                ) : (
+                  <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE (Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
+                    <strong style={{ color: '#065f46' }}>Total: {formatIDR(bike.total_price)} ({bike.payment_method})</strong>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '20px', marginTop: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>FOTO KONDISI SEPEDA:</span>
+                    <img src={bike.photo_url} alt="Kondisi" style={{ height: '90px', borderRadius: '4px', display: 'block', marginTop: '4px', border: '1px solid #cbd5e1', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TANDA TANGAN KONTRAK TAMU:</span>
+                    <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', padding: '4px', height: '90px', display: 'flex', alignItems: 'center' }}>
+                      <img src={bike.signature_url} alt="Tanda Tangan" style={{ maxHeight: '100%', maxWidth: '100%', display: 'block', margin: '0 auto' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+export default function POSClientApp({ 
+  initialProducts, initialStaff, initialTransactions, initialShiftClosings, initialCases = [], initialBikes = [] 
+}: { 
+  initialProducts?: any[]; initialStaff?: any[]; initialTransactions?: any[]; initialShiftClosings?: any[]; initialCases?: any[]; initialBikes?: any[];
+}) {
   const router = useRouter(); 
   const [currentStaff, setCurrentStaff] = useState<any>(null);
   const [activePage, setActivePage] = useState("Launchpad");
+  const [bikes, setBikes] = useState(initialBikes); // <--- STATE BARU UNTUK SEPEDA
 
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
@@ -883,6 +1002,7 @@ export default function POSClientApp({ initialProducts, initialStaff, initialTra
       {activePage === "Case Report" && isAdmin && <CaseReportDashboard cases={initialCases} />}
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
+      {activePage === "Bike Rental" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">

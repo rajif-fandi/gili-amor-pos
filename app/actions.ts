@@ -377,3 +377,26 @@ export async function submitBikeRental(data: {
     return { success: false, error: error.message };
   }
 }
+export async function processBikeRental(id: string, data: {
+  unit_no: string;
+  total_price: number;
+  payment_method: string;
+  staff_name: string;
+}) {
+  try {
+    const updated = await prisma.bikeRental.update({
+      where: { id },
+      data: {
+        unit_no: data.unit_no,
+        total_price: data.total_price,
+        payment_method: data.payment_method,
+        staff_name: data.staff_name,
+        status: "DONE"
+      }
+    });
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("ERROR PROCESS BIKE:", error);
+    return { success: false, error: error.message };
+  }
+}

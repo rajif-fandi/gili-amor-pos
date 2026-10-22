@@ -24,6 +24,10 @@ export default async function Page() {
     include: { staff: true } 
   });
 
+  const dbBikes = await prisma.bikeRental.findMany({
+    orderBy: { created_at: 'desc' }
+  });
+
   const formattedProducts = dbItems.map((item) => ({
     id: item.item_code,
     name: item.item_service,
@@ -92,6 +96,7 @@ export default async function Page() {
       initialTransactions={formattedTransactions} 
       initialShiftClosings={dbShiftClosings} 
       initialCases={formattedCases} 
+      initialBikes={dbBikes}
     />
   );
 }
