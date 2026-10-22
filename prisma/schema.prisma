@@ -119,3 +119,43 @@ model ShiftClosing {
   staff_id      String
   staff         Staff    @relation(fields: [staff_id], references: [staff_id])
 }
+
+// --- MODUL LAUNDRY ---
+model LaundryOrder {
+  id             String   @id @default(cuid())
+  order_no       String   @unique
+  room           String
+  guest_name     String
+  whatsapp       String
+  items_detail   Json     // Menyimpan rincian pakaian (Misal: {"Celana Pendek": 2, "Baju Kaos": 1})
+  total_pcs      Int
+  notes          String?
+  weight_kg      Float?
+  service_type   String?  // Normal / Express
+  total_price    Float?
+  payment_method String?
+  status         String   @default("PENDING") // PENDING, DONE
+  staff_name     String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}
+
+// --- MODUL RENTAL SEPEDA ---
+model BikeRental {
+  id             String   @id @default(cuid())
+  rental_no      String   @unique
+  room           String
+  guest_name     String
+  whatsapp       String
+  bike_type      String   // Standard Bicycle / Electric Bike
+  duration_days  Int
+  unit_no        String?
+  photo_url      String?  // Link URL gambar kondisi sepeda
+  signature_url  String?  // Link URL tanda tangan digital tamu
+  total_price    Float?
+  payment_method String?
+  status         String   @default("PENDING") // PENDING, DONE
+  staff_name     String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}

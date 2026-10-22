@@ -348,3 +348,32 @@ export async function updateStaff(data: { dbId: string; nama: string; posisi: st
     return { success: false, error: error.message };
   }
 }
+export async function submitBikeRental(data: {
+  room: string;
+  guest_name: string;
+  whatsapp: string;
+  bike_type: string;
+  duration_days: number;
+  photo_url: string;
+  signature_url: string;
+}) {
+  try {
+    const newRental = await prisma.bikeRental.create({
+      data: {
+        rental_no: "BIKE-" + Date.now(),
+        room: data.room,
+        guest_name: data.guest_name,
+        whatsapp: data.whatsapp,
+        bike_type: data.bike_type,
+        duration_days: data.duration_days,
+        photo_url: data.photo_url,
+        signature_url: data.signature_url,
+        status: "PENDING"
+      }
+    });
+    return { success: true, data: newRental };
+  } catch (error: any) {
+    console.error("ERROR SUBMIT BIKE:", error);
+    return { success: false, error: error.message };
+  }
+}
