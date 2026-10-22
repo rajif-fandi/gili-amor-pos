@@ -40,15 +40,23 @@ export default function BikeRentalForm() {
 
     setIsSubmitting(true);
     try {
+      // 1. Upload Foto Sepeda ke Supabase
       const photoName = `bike-${Date.now()}-${photo.name}`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
-      const photoUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gili-storage/${photoName}`;
+      
+      // MENGAMBIL PUBLIC URL YANG BENAR TANPA BUTUH API KEY
+      const { data: photoData } = supabase.storage.from("gili-storage").getPublicUrl(photoName);
+      const photoUrl = photoData.publicUrl;
 
+      // 2. Upload Tanda Tangan ke Supabase
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
       await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
-      const sigUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gili-storage/${sigName}`;
+      
+      // MENGAMBIL PUBLIC URL TANDA TANGAN YANG BENAR
+      const { data: sigData } = supabase.storage.from("gili-storage").getPublicUrl(sigName);
+      const sigUrl = sigData.publicUrl;
 
       const res = await submitBikeRental({
         ...formData,
