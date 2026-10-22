@@ -70,11 +70,18 @@ export default function BikeRentalForm() {
 
   if (isSuccess) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "20px" }}>
+      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "20px", fontFamily: "sans-serif" }}>
         <div style={{ background: "#fff", padding: "40px", borderRadius: "16px", textAlign: "center", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
           <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
           <h2 style={{ color: "#0f172a", marginBottom: "10px" }}>Order Submitted!</h2>
-          <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6" }}>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
+          <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6", marginBottom: "24px" }}>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
+          
+          {/* TOMBOL UNTUK KEMBALI MENGISI FORM BARU */}
+          <button 
+            onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }} 
+            style={{ width: "100%", padding: "12px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
+            Rent Another Bike
+          </button>
         </div>
       </main>
     );

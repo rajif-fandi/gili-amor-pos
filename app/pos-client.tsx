@@ -121,11 +121,11 @@ function ReceiptModal({ transaction, onClose }: { transaction: any, onClose: () 
 const navItems = [
   { label: "Launchpad", icon: "home" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Dashboard", icon: "dashboard" as IconName, roles: ["Admin"] },
-  { label: "Bike Rental", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Reception", icon: "reception" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Rent", icon: "rent" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Buy", icon: "buy" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Bike Dashboard", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Case / Follow-up", icon: "case" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Payment Database", icon: "database" as IconName, roles: ["Admin"] },
   { label: "Case Report", icon: "reports" as IconName, roles: ["Admin"] },
