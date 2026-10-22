@@ -40,11 +40,13 @@ export default function BikeRentalForm() {
 
     setIsSubmitting(true);
     try {
+      // 1. Upload Foto
       const photoName = `bike-${Date.now()}-${photo.name}`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
       const { data: photoData } = supabase.storage.from("gili-storage").getPublicUrl(photoName);
       const photoUrl = photoData.publicUrl;
 
+      // 2. Upload Tanda Tangan
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
@@ -84,16 +86,16 @@ export default function BikeRentalForm() {
   }
 
   return (
-    <div style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "0", margin: "0", fontFamily: "sans-serif", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto", background: "#fff", minHeight: "100vh", boxSizing: "border-box" }}>
+    <div style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "0", margin: "0", fontFamily: "sans-serif", width: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: "100%", background: "#fff", minHeight: "100vh", boxSizing: "border-box" }}>
         
-        <div style={{ backgroundColor: "#0f172a", padding: "24px 16px", color: "#fff", textAlign: "center" }}>
+        <div style={{ backgroundColor: "#0f172a", padding: "20px 16px", color: "#fff", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
           <img src="/logo-gili.png" alt="Gili Amor" style={{ height: "45px", marginBottom: "10px", objectFit: "contain" }} />
           <h1 style={{ fontSize: "18px", margin: "0 0 4px 0", letterSpacing: "1px" }}>GILIAMOR BIKE</h1>
           <p style={{ fontSize: "12px", opacity: 0.8, margin: 0 }}>DIGITAL RENTAL & AGREEMENT FORM</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "16px", boxSizing: "border-box", width: "100%" }}>
+        <form onSubmit={handleSubmit} style={{ padding: "16px", boxSizing: "border-box", width: "100%", maxWidth: "600px", margin: "0 auto" }}>
           <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold" }}>GUEST INFORMATION</h3>
           
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px", width: "100%" }}>
