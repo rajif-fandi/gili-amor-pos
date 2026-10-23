@@ -114,13 +114,15 @@ export default function BikeRentalForm() {
     setIsSubmitting(true);
     try {
       const photoName = `bike-${Date.now()}.jpg`;
-      await supabase.storage.from("gili-storage").upload(photoName, photo);
+      const { error: photoErr } = await supabase.storage.from("gili-storage").upload(photoName, photo);
+      if (photoErr) throw new Error("Upload foto gagal: " + photoErr.message);
       const photoUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${photoName}`;
 
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
-      await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
+      const { error: sigErr } = await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
+      if (sigErr) throw new Error("Upload tanda tangan gagal: " + sigErr.message);
       const sigUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${sigName}`;
 
       const res = await submitBikeRental({
