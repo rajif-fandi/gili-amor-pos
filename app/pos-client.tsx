@@ -392,7 +392,8 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
                       {new Date(order.created_at).toLocaleDateString('id-ID')}
                     </td>
-                    <td style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <td style={{ padding: '16px 12px', verticalAlign: 'middle', minWidth: '120px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {isDone ? (
                         <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>✓ {order.staff_name}</span>
                       ) : (
@@ -407,6 +408,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                           </select>
                         </>
                       )}
+                    </div>
                     </td>
                   </tr>
                 );
