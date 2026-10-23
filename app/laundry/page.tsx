@@ -23,7 +23,6 @@ export default function LaundryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Mengunci layar agar tidak bisa digeser ke kanan
   useEffect(() => {
     document.body.style.overflowX = "hidden";
     document.documentElement.style.overflowX = "hidden";
@@ -47,8 +46,6 @@ export default function LaundryForm() {
     if (totalItems === 0) return alert("Silakan masukkan minimal 1 pakaian!");
     
     setIsSubmitting(true);
-    // TODO: Nanti kita hubungkan dengan Supabase & action.ts
-    // Simulasi loading 1 detik
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
@@ -57,7 +54,7 @@ export default function LaundryForm() {
 
   if (isSuccess) {
     return (
-      <div style={{ width: "100%", maxWidth: "100vw", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
+      <div style={{ width: "100%", maxWidth: "100%", position: "relative", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
         <div style={{ background: "#fff", padding: "30px 20px", borderRadius: "16px", textAlign: "center", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
           <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
           <h2 style={{ color: "#0f172a", marginBottom: "10px", fontSize: "20px", marginTop: 0 }}>Order Submitted!</h2>
@@ -71,16 +68,14 @@ export default function LaundryForm() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "100vw", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f8fafc", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
+    <div style={{ width: "100%", maxWidth: "100%", position: "relative", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f8fafc", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
       <div style={{ width: "100%", maxWidth: "500px", backgroundColor: "#fff", minHeight: "100vh", boxSizing: "border-box", boxShadow: "0 0 15px rgba(0,0,0,0.05)", overflowX: "hidden", padding: "20px" }}>
         
-        {/* HEADER */}
         <div style={{ textAlign: "center", marginBottom: "24px" }}>
           <h1 style={{ fontSize: "24px", margin: "0 0 4px 0", color: "#0284c7", fontWeight: "900", letterSpacing: "1px" }}>GILIAMOR</h1>
           <p style={{ fontSize: "13px", color: "#64748b", margin: 0, fontWeight: "bold" }}>LAUNDRY DIGITAL FORM</p>
         </div>
 
-        {/* INFO HARGA */}
         <div style={{ backgroundColor: "#e0f2fe", borderRadius: "8px", padding: "16px", marginBottom: "24px", border: "1px solid #bae6fd" }}>
           <strong style={{ display: "block", color: "#0284c7", fontSize: "14px", marginBottom: "12px", borderBottom: "1px dashed #7dd3fc", paddingBottom: "8px" }}>
             📢 SERVICE & PRICE INFORMATION:
@@ -93,7 +88,6 @@ export default function LaundryForm() {
 
         <form onSubmit={handleSubmit} style={{ width: "100%", boxSizing: "border-box" }}>
           
-          {/* GUEST INFO */}
           <h3 style={{ fontSize: "15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#1e293b" }}>GUEST INFORMATION</h3>
           
           <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "12px", width: "100%" }}>
@@ -112,7 +106,6 @@ export default function LaundryForm() {
             <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="e.g. +62812345678" style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", width: "100%", boxSizing: "border-box" }} />
           </label>
 
-          {/* CLOTHES CHECKLIST */}
           <h3 style={{ fontSize: "15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#1e293b" }}>CLOTHES CHECKLIST</h3>
           
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px", width: "100%", boxSizing: "border-box" }}>
@@ -127,22 +120,19 @@ export default function LaundryForm() {
               </div>
             ))}
             
-            {/* TOTAL ITEMS BOX */}
             <div style={{ border: "2px dashed #f59e0b", borderRadius: "8px", padding: "12px", textAlign: "center", background: "#fef3c7", display: "flex", flexDirection: "column", justifyContent: "center", boxSizing: "border-box" }}>
               <span style={{ fontSize: "12px", fontWeight: "bold", color: "#92400e", marginBottom: "4px" }}>TOTAL ITEMS /<br/>TOTAL PAKAIAN</span>
               <strong style={{ fontSize: "22px", color: "#dc2626" }}>{totalItems} Pcs</strong>
             </div>
           </div>
 
-          {/* SPECIAL REQUEST */}
           <h3 style={{ fontSize: "15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#1e293b", marginTop: "24px" }}>SPECIAL REQUEST</h3>
           
           <label style={{ display: "flex", flexDirection: "column", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "24px", width: "100%" }}>
             Notes / Catatan Khusus (Optional):
-            <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="e.g. No perfume..." style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "14px", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }} />
+            <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="e.g. No perfume..." style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "14px", width: "100%", boxSizing: "border-box", fontFamily: "inherit", maxWidth: "100%" }} />
           </label>
 
-          {/* SUBMIT BUTTON */}
           <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "30px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(2, 132, 199, 0.2)", boxSizing: "border-box", marginBottom: "20px" }}>
             {isSubmitting ? "Processing..." : "SUBMIT LAUNDRY ORDER"}
           </button>

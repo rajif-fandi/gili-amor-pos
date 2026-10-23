@@ -22,7 +22,6 @@ export default function BikeRentalForm() {
   const [isSuccess, setIsSuccess] = useState(false);
   const sigCanvas = useRef<any>(null);
 
-  // Mengunci scroll horizontal pada tingkat body saat form dimuat
   useEffect(() => {
     document.body.style.overflowX = "hidden";
     document.documentElement.style.overflowX = "hidden";
@@ -78,7 +77,7 @@ export default function BikeRentalForm() {
 
   if (isSuccess) {
     return (
-      <div style={{ width: "100%", maxWidth: "100vw", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
+      <div style={{ width: "100%", maxWidth: "100%", position: "relative", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
         <div style={{ background: "#fff", padding: "30px 20px", borderRadius: "16px", textAlign: "center", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
           <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
           <h2 style={{ color: "#0f172a", marginBottom: "10px", fontSize: "20px", marginTop: 0 }}>Order Submitted!</h2>
@@ -94,7 +93,7 @@ export default function BikeRentalForm() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "100vw", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f1f5f9", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
+    <div style={{ width: "100%", maxWidth: "100%", position: "relative", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f1f5f9", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
       <div style={{ width: "100%", maxWidth: "500px", backgroundColor: "#fff", minHeight: "100vh", boxSizing: "border-box", boxShadow: "0 0 15px rgba(0,0,0,0.05)", overflowX: "hidden" }}>
         
         <div style={{ backgroundColor: "#0f172a", padding: "20px", color: "#fff", textAlign: "center", boxSizing: "border-box", width: "100%" }}>
