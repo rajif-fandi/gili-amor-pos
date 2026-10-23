@@ -488,7 +488,7 @@ export async function processLaundryOrder(id: string, data: {
   staff_name: string;
 }) {
   try {
-    // 1. Update status laundry menjadi DONE
+    // 1. Update status pesanan Laundry menjadi DONE
     const updated = await prisma.laundryOrder.update({
       where: { id },
       data: {
@@ -501,40 +501,54 @@ export async function processLaundryOrder(id: string, data: {
       }
     });
 
-    // 2. Pastikan ada Master Item "LAUNDRY" agar bisa masuk ke laporan
+    // 2. Daftarkan kode "LAUNDRY" ke Master Item otomatis jika belum ada
+    const itemCode = "SVC-LAUNDRY";
     const exists = await prisma.masterItem.findUnique({
-      where: { item_code: "LAUNDRY" }
+      where: { item_code: itemCode }
     });
     
     if (!exists) {
       await prisma.masterItem.create({
         data: {
-          item_code: "LAUNDRY", item_service: "Laundry Service", default_rate: 0,
-          category: "CHARGE", billing_type: "PER_UNIT", desk: "laundry",
-          notes: "Auto-generated", active: true
+          item_code: itemCode,
+          item_service: "Laundry Service", 
+          default_rate: 0,           
+          category: "CHARGE",                        
+          billing_type: "PER_UNIT",                  
+          desk: "laundry",
+          notes: "Auto-generated",
+          active: true
         }
       });
     }
 
-    // 3. Masukkan datanya ke tabel Transaksi utama agar muncul di Reports!
-    const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
-    
+    // 3. Cari Staff ID kasir yang memproses
+    const staff = await prisma.staff.findFirst({
+      where: { nama: data.staff_name }
+    });
+    const staffId = staff ? staff.staff_id : "STF-DEFAULT";
+
+    // 4. MASUKKAN KE DATABASE TRANSAKSI UTAMA AGAR MUNCUL DI REPORT!
     await prisma.transaksi.create({
       data: {
-        no_transaksi: "TRX-LND-" + Date.now(),
-        nama_tamu: updated.guest_name || "Laundry Guest",
+        no_transaksi: "TRX-LND-" + Date.now(), // Kode TRX khusus Laundry
+        nama_tamu: updated.guest_name,
         payment_method: data.payment_method,
-        grand_total: Number(data.total_price),
-        amount_paid: Number(data.total_price),
+        grand_total: data.total_price,
+        amount_paid: data.total_price,
         balance: 0,
         payment_status: "PAID",
         room: updated.room || "-",
-        staff_id: staff ? staff.staff_id : "STF-DEFAULT",
-        notes: `Laundry ${data.service_type} - ${data.weight_kg} Kg`,
+        staff_id: staffId,
+        notes: `Laundry ${data.weight_kg}Kg - ${data.service_type}`,
         details: {
           create: [{
-            item_code: "LAUNDRY", qty: 1, duration: 1, discount: 0,
-            rate: Number(data.total_price), total: Number(data.total_price),
+            item_code: itemCode,
+            qty: 1,
+            duration: 1, 
+            rate: data.total_price,
+            discount: 0,
+            total: data.total_price,
           }],
         },
       },
