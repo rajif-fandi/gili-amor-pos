@@ -416,7 +416,7 @@ export async function submitLaundryOrder(data: {
         room: data.room,
         guest_name: data.guest_name,
         whatsapp: data.whatsapp,
-        items_detail: data.items_detail, // Menyimpan objek JSON rincian pakaian
+        items_detail: data.items_detail,
         total_pcs: Number(data.total_pcs),
         notes: data.notes || "",
         status: "PENDING",

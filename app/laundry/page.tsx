@@ -1,10 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://havaerpmltfzuupgwnzu.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { submitLaundryOrder } from "../actions"; // Memanggil server action yang aman
 
 const CLOTHES_LIST = [
   "Shorts (Celana Pendek)", "Long Pants (Celana Panjang)", 
@@ -56,29 +52,23 @@ export default function LaundryForm() {
         Object.entries(clothes).filter(([_, qty]) => qty > 0)
       );
 
-      const orderNo = `LND-${Date.now().toString().slice(-6)}`;
+      // Memanggil Server Action yang langsung mengeksekusi Prisma di server
+      const res = await submitLaundryOrder({
+        room: formData.room,
+        guest_name: formData.guest_name,
+        whatsapp: formData.whatsapp,
+        items_detail: activeItems,
+        total_pcs: totalItems,
+        notes: formData.notes
+      });
 
-      // Menyimpan langsung ke tabel Supabase LaundryOrder
-      const { error } = await supabase.from("LaundryOrder").insert([
-        {
-          order_no: orderNo,
-          room: formData.room,
-          guest_name: formData.guest_name,
-          whatsapp: formData.whatsapp,
-          items_detail: activeItems,
-          total_pcs: totalItems,
-          notes: formData.notes || "",
-          status: "PENDING"
-        }
-      ]);
-
-      if (error) {
-        throw new Error(error.message);
+      if (res && res.success) {
+        setIsSuccess(true);
+      } else {
+        alert("Gagal mengirim pesanan: " + (res?.error || "Unknown error"));
       }
-
-      setIsSuccess(true);
     } catch (err: any) {
-      alert("Gagal mengirim pesanan: " + err.message);
+      alert("Terjadi kesalahan: " + err.message);
     }
     setIsSubmitting(false);
   };
