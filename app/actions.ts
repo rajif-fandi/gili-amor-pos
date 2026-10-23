@@ -561,3 +561,28 @@ export async function processLaundryOrder(id: string, data: {
     return { success: false, error: error.message };
   }
 }
+export async function clearAllLaundryOrders() {
+  try {
+    await prisma.laundryOrder.deleteMany({});
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateLaundryGuestInfo(id: string, data: { room: string; guest_name: string; whatsapp: string; notes: string; }) {
+  try {
+    const updated = await prisma.laundryOrder.update({
+      where: { id },
+      data: {
+        room: data.room,
+        guest_name: data.guest_name,
+        whatsapp: data.whatsapp,
+        notes: data.notes
+      }
+    });
+    return { success: true, data: updated };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

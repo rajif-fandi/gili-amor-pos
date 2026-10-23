@@ -136,12 +136,20 @@ const navItems = [
 
 
 // =========================================================================================
-// NEW LAUNDRY DASHBOARD CONTENT - LAYOUT FIXED & CLEANED
+// NEW LAUNDRY DASHBOARD CONTENT - FULLY FUNCTIONAL (FILTER, EDIT, CLEAR)
 // =========================================================================================
 function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, any>>({});
+  
+  // State untuk Filter
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filterPayment, setFilterPayment] = useState("All Payment");
+  
+  // State untuk Edit Modal
+  const [editModal, setEditModal] = useState<any>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -156,6 +164,28 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
 
   useEffect(() => { fetchOrders(); }, []);
 
+  // Logika Filter (Otomatis menyaring data berdasarkan tanggal & metode bayar)
+  const filteredOrders = orders.filter((o) => {
+    const oDate = new Date(o.created_at);
+    // Filter Metode Bayar (Jika belum DONE, default pembayarannya dianggap Cash atau sesuai input FO)
+    if (filterPayment !== "All Payment") {
+      const method = o.payment_method || "Cash";
+      if (method !== filterPayment) return false;
+    }
+    // Filter Tanggal
+    if (startDate) {
+      const sDate = new Date(startDate);
+      sDate.setHours(0, 0, 0, 0);
+      if (oDate < sDate) return false;
+    }
+    if (endDate) {
+      const eDate = new Date(endDate);
+      eDate.setHours(23, 59, 59, 999);
+      if (oDate > eDate) return false;
+    }
+    return true;
+  });
+
   const handleEditChange = (id: string, field: string, value: any) => {
     setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   };
@@ -166,7 +196,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
       return alert("PENTING: Mohon isi Berat (Kg), Total Harga, dan Pilih FO sebelum klik Done!");
     }
     
-    if (confirm("Proses pesanan laundry ini? Data akan tersimpan sebagai DONE.")) {
+    if (confirm("Proses pesanan laundry ini ke laporan keuangan pusat?")) {
       const payload = {
         weight_kg: Number(data.weight_kg),
         service_type: data.service_type || 'Normal',
@@ -177,16 +207,46 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
       
       const res = await processLaundryOrder(orderId, payload);
       if (res && res.success) {
-        alert("Pesanan berhasil diproses!");
-        fetchOrders(); // Refresh table
+        alert("Pesanan berhasil diproses dan masuk ke Report!");
+        fetchOrders(); 
       } else {
         alert("Gagal memproses pesanan: " + (res?.error || "Unknown Error"));
       }
     }
   };
 
+  // Fungsi Kosongkan Data
+  const handleClearData = async () => {
+    if (confirm("⚠️ PERINGATAN BAPAK MANAJER: Anda yakin ingin menghapus SEMUA data laundry? Aksi ini tidak dapat dibatalkan!")) {
+      // Panggil fungsi dari backend yang baru saja kita buat
+      const res = await (await import('./actions')).clearAllLaundryOrders();
+      if (res.success) {
+        alert("Semua data laundry berhasil dikosongkan.");
+        fetchOrders();
+      } else {
+        alert("Gagal menghapus data.");
+      }
+    }
+  };
+
+  // Fungsi Simpan Edit Info Tamu
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await (await import('./actions')).updateLaundryGuestInfo(editModal.id, {
+      room: editModal.room,
+      guest_name: editModal.guest_name,
+      whatsapp: editModal.whatsapp,
+      notes: editModal.notes
+    });
+    if (res.success) {
+      alert("Info tamu berhasil diubah!");
+      setEditModal(null);
+      fetchOrders();
+    } else alert("Gagal mengubah data.");
+  };
+
   const exportExcel = () => {
-    const dataToExport = orders.map((r, index) => ({
+    const dataToExport = filteredOrders.map((r, index) => ({
       No: index + 1, Kamar: r.room, Tamu: r.guest_name, WhatsApp: r.whatsapp,
       TotalPcs: r.total_pcs, BeratKg: r.weight_kg || "-", Layanan: r.service_type || "-",
       TotalHarga: r.total_price || "-", MetodeBayar: r.payment_method || "-",
@@ -200,11 +260,29 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
 
   return (
     <section className="workspace-screen">
-      {/* HEADER ATAS - TOMBOL LOGOUT DIHAPUS */}
+      {/* MODAL EDIT TAMU */}
+      {editModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', color: '#0f172a' }}>
+            <h3 style={{ marginBottom: '16px' }}>Edit Info Tamu (Laundry)</h3>
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label>Kamar<input required value={editModal.room} onChange={e => setEditModal({...editModal, room: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} /></label>
+              <label>Nama Tamu<input required value={editModal.guest_name} onChange={e => setEditModal({...editModal, guest_name: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} /></label>
+              <label>WhatsApp<input required value={editModal.whatsapp} onChange={e => setEditModal({...editModal, whatsapp: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} /></label>
+              <label>Catatan<input value={editModal.notes} onChange={e => setEditModal({...editModal, notes: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} /></label>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setEditModal(null)} style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '4px' }}>Batal</button>
+                <button type="submit" style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, color: '#15803d', fontSize: '24px', fontWeight: 'bold' }}>Giliamor Laundry List</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+          <button onClick={handleClearData} style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
             ⚠ Kosongkan Data
           </button>
           <button onClick={exportExcel} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -215,28 +293,30 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
 
       <div className="workspace-content" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
-        {/* FILTER BAR */}
+        {/* FILTER BAR YANG SEKARANG SUDAH AKTIF */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end', background: '#fff', padding: '16px 24px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
             DARI TANGGAL:
-            <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
           </label>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
             SAMPAI TANGGAL:
-            <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
           </label>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
             METODE BAYAR:
-            <select style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-              <option>All Payment</option><option>Cash</option><option>Card</option><option>Room Charge</option>
+            <select value={filterPayment} onChange={e => setFilterPayment(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+              <option value="All Payment">All Payment</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Room Charge">Room Charge</option>
             </select>
           </label>
-          <button style={{ padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
-            Panggil Laporan
+          <button onClick={() => { setStartDate(""); setEndDate(""); setFilterPayment("All Payment"); }} style={{ padding: '10px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
+            Reset Filter
           </button>
         </div>
 
-        {/* TABEL DATA LAUNDRY - FIT NORMAL TANPA SCROLL DALAM */}
         <div style={{ width: '100%', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
@@ -260,9 +340,9 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
             <tbody>
               {loading ? (
                 <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr>
-              ) : orders.length === 0 ? (
-                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Belum ada data laundry.</td></tr>
-              ) : orders.map((order, index) => {
+              ) : filteredOrders.length === 0 ? (
+                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Tidak ada data yang sesuai filter.</td></tr>
+              ) : filteredOrders.map((order, index) => {
                 const isDone = order.status === "DONE";
                 return (
                   <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0', background: isDone ? '#f0fdf4' : '#fff' }}>
@@ -281,12 +361,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
                         : '-'}
                     </td>
-                    
-                    {/* TOTAL PCS - BACKGROUND BIRU DIHILANGKAN */}
-                    <td style={{ padding: '16px 12px', fontWeight: 'bold', color: '#0f172a' }}>
-                      {order.total_pcs} Pcs
-                    </td>
-                    
+                    <td style={{ padding: '16px 12px', fontWeight: 'bold', color: '#0f172a' }}>{order.total_pcs} Pcs</td>
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
                     
                     <td style={{ padding: '16px 12px' }}>
@@ -306,9 +381,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         <input type="number" placeholder="Rp" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '70px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
                       )}
                     </td>
-                    <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>
-                      {order.status}
-                    </td>
+                    <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>{order.status}</td>
                     <td style={{ padding: '16px 12px' }}>
                       {isDone ? <span>{order.payment_method}</span> : (
                         <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
@@ -325,6 +398,9 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                       ) : (
                         <>
                           <button onClick={() => handleProcess(order.id)} style={{ padding: '4px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Done</button>
+                          {/* TOMBOL EDIT BARU! */}
+                          <button onClick={() => setEditModal(order)} style={{ padding: '4px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Edit</button>
+                          
                           <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '10px' }}>
                             <option value="">FO</option>
                             {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
