@@ -136,7 +136,7 @@ const navItems = [
 
 
 // =========================================================================================
-// NEW LAUNDRY DASHBOARD CONTENT - MENGIKUTI DESAIN REFERENSI UI TABEL
+// NEW LAUNDRY DASHBOARD CONTENT - LAYOUT FIXED
 // =========================================================================================
 function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const [orders, setOrders] = useState<any[]>([]);
@@ -199,10 +199,9 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   };
 
   return (
-    <section style={{ width: "100%", minHeight: "100vh", backgroundColor: "#f8fafc", padding: "20px", boxSizing: "border-box", fontFamily: "sans-serif" }}>
-      
-      {/* HEADER ATAS */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: '#fff', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+    <section className="workspace-screen">
+      {/* HEADER ATAS - MENGGUNAKAN CLASS WORKSPACE HEADER */}
+      <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, color: '#15803d', fontSize: '24px', fontWeight: 'bold' }}>Giliamor Laundry List</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
@@ -215,131 +214,135 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
             Logout
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* FILTER BAR */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', alignItems: 'end', marginBottom: '20px', background: '#fff', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-          DARI TANGGAL:
-          <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-        </label>
-        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-          SAMPAI TANGGAL:
-          <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-        </label>
-        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-          METODE BAYAR:
-          <select style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-            <option>All Payment</option><option>Cash</option><option>Card</option><option>Room Charge</option>
-          </select>
-        </label>
-        <button style={{ padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
-          Panggil Laporan
-        </button>
-      </div>
+      {/* WORKSPACE CONTENT - MENGISI SISA LAYAR DENGAN RAPI */}
+      <div className="workspace-content" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* FILTER BAR */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end', background: '#fff', padding: '16px 24px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+            DARI TANGGAL:
+            <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+          </label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+            SAMPAI TANGGAL:
+            <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+          </label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+            METODE BAYAR:
+            <select style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+              <option>All Payment</option><option>Cash</option><option>Card</option><option>Room Charge</option>
+            </select>
+          </label>
+          <button style={{ padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
+            Panggil Laporan
+          </button>
+        </div>
 
-      {/* TABEL DATA LAUNDRY */}
-      <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1300px' }}>
-          <thead>
-            <tr style={{ background: '#374151', color: '#fff', textAlign: 'left' }}>
-              <th style={{ padding: '16px 12px' }}>No</th>
-              <th style={{ padding: '16px 12px' }}>Kamar</th>
-              <th style={{ padding: '16px 12px' }}>Nama Tamu</th>
-              <th style={{ padding: '16px 12px' }}>WhatsApp / No HP</th>
-              <th style={{ padding: '16px 12px', width: '220px' }}>Rincian Pakaian</th>
-              <th style={{ padding: '16px 12px' }}>Total Pcs</th>
-              <th style={{ padding: '16px 12px' }}>Catatan</th>
-              <th style={{ padding: '16px 12px', width: '90px' }}>Berat (Kg)</th>
-              <th style={{ padding: '16px 12px' }}>Layanan</th>
-              <th style={{ padding: '16px 12px', width: '110px' }}>Total Harga</th>
-              <th style={{ padding: '16px 12px' }}>Status</th>
-              <th style={{ padding: '16px 12px' }}>Metode Bayar</th>
-              <th style={{ padding: '16px 12px' }}>Waktu WITA</th>
-              <th style={{ padding: '16px 12px', width: '110px' }}>Aksi Kasir</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr>
-            ) : orders.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Belum ada data laundry.</td></tr>
-            ) : orders.map((order, index) => {
-              const isDone = order.status === "DONE";
-              return (
-                <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0', background: isDone ? '#f0fdf4' : '#fff' }}>
-                  <td style={{ padding: '16px 12px', color: '#64748b' }}>{index + 1}</td>
-                  <td style={{ padding: '16px 12px' }}>
-                    <span style={{ background: '#f59e0b', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{order.room}</span>
-                  </td>
-                  <td style={{ padding: '16px 12px', color: '#334155' }}>{order.guest_name}</td>
-                  <td style={{ padding: '16px 12px' }}>
-                    <a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {order.whatsapp} <small>(Chat WA ↗)</small>
-                    </a>
-                  </td>
-                  <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>
-                    {order.items_detail && typeof order.items_detail === 'object' 
-                      ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
-                      : '-'}
-                  </td>
-                  <td style={{ padding: '16px 12px' }}>
-                    <span style={{ background: '#2563eb', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>{order.total_pcs} Pcs</span>
-                  </td>
-                  <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
-                  
-                  {/* KOLOM INPUT & DROPDOWN AKTIF (Hanya jika belum DONE) */}
-                  <td style={{ padding: '16px 12px' }}>
-                    {isDone ? <strong>{order.weight_kg} Kg</strong> : (
-                      <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '60px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
-                    )}
-                  </td>
-                  <td style={{ padding: '16px 12px' }}>
-                    {isDone ? <span>{order.service_type}</span> : (
-                      <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #16a34a', borderRadius: '4px', color: '#16a34a', fontWeight: 'bold' }}>
-                        <option value="Normal">Normal</option><option value="Express">Express</option>
-                      </select>
-                    )}
-                  </td>
-                  <td style={{ padding: '16px 12px' }}>
-                    {isDone ? <strong>{formatIDR(order.total_price)}</strong> : (
-                      <input type="number" placeholder="Rp Total" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '80px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
-                    )}
-                  </td>
-                  <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>
-                    {order.status}
-                  </td>
-                  <td style={{ padding: '16px 12px' }}>
-                    {isDone ? <span>{order.payment_method}</span> : (
-                      <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                        <option value="Cash">Cash</option><option value="Card">Card</option><option value="Room Charge">Room Charge</option>
-                      </select>
-                    )}
-                  </td>
-                  <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
-                    {new Date(order.created_at).toLocaleString('id-ID')}
-                  </td>
-                  
-                  {/* AKSI KASIR */}
-                  <td style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {isDone ? (
-                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#16a34a' }}>✓ Processed by {order.staff_name}</span>
-                    ) : (
-                      <>
-                        <button onClick={() => handleProcess(order.id)} style={{ padding: '6px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Done</button>
-                        <button style={{ padding: '6px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                        <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', fontSize: '11px' }}>
-                          <option value="">Pilih FO</option>
-                          {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
+        {/* TABEL DATA LAUNDRY - BISA DISUBLIDE / SCROLL MENYAMPING JIKA KEPANJANGAN */}
+        <div style={{ width: '100%', overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1300px' }}>
+            <thead>
+              <tr style={{ background: '#374151', color: '#ffffff', textAlign: 'left' }}>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>No</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Kamar</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Nama Tamu</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>WhatsApp / No HP</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '220px' }}>Rincian Pakaian</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Pcs</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Catatan</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '90px' }}>Berat (Kg)</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Layanan</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '110px' }}>Total Harga</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Status</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Metode Bayar</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Waktu WITA</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '110px' }}>Aksi Kasir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr>
+              ) : orders.length === 0 ? (
+                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Belum ada data laundry.</td></tr>
+              ) : orders.map((order, index) => {
+                const isDone = order.status === "DONE";
+                return (
+                  <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0', background: isDone ? '#f0fdf4' : '#fff' }}>
+                    <td style={{ padding: '16px 12px', color: '#64748b' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 12px' }}>
+                      <span style={{ background: '#f59e0b', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{order.room}</span>
+                    </td>
+                    <td style={{ padding: '16px 12px', color: '#334155' }}>{order.guest_name}</td>
+                    <td style={{ padding: '16px 12px' }}>
+                      <a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {order.whatsapp} <small>(Chat WA ↗)</small>
+                      </a>
+                    </td>
+                    <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>
+                      {order.items_detail && typeof order.items_detail === 'object' 
+                        ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
+                        : '-'}
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      <span style={{ background: '#2563eb', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>{order.total_pcs} Pcs</span>
+                    </td>
+                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
+                    
+                    {/* KOLOM INPUT & DROPDOWN AKTIF (Hanya jika belum DONE) */}
+                    <td style={{ padding: '16px 12px' }}>
+                      {isDone ? <strong>{order.weight_kg} Kg</strong> : (
+                        <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '60px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      {isDone ? <span>{order.service_type}</span> : (
+                        <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #16a34a', borderRadius: '4px', color: '#16a34a', fontWeight: 'bold' }}>
+                          <option value="Normal">Normal</option><option value="Express">Express</option>
                         </select>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      {isDone ? <strong>{formatIDR(order.total_price)}</strong> : (
+                        <input type="number" placeholder="Rp Total" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '80px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>
+                      {order.status}
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      {isDone ? <span>{order.payment_method}</span> : (
+                        <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                          <option value="Cash">Cash</option><option value="Card">Card</option><option value="Room Charge">Room Charge</option>
+                        </select>
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
+                      {new Date(order.created_at).toLocaleString('id-ID')}
+                    </td>
+                    
+                    {/* AKSI KASIR */}
+                    <td style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {isDone ? (
+                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#16a34a' }}>✓ Processed by {order.staff_name}</span>
+                      ) : (
+                        <>
+                          <button onClick={() => handleProcess(order.id)} style={{ padding: '6px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Done</button>
+                          <button style={{ padding: '6px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
+                          <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', fontSize: '11px' }}>
+                            <option value="">Pilih FO</option>
+                            {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
+                          </select>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
