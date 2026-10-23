@@ -40,7 +40,7 @@ export default function BikeRentalForm() {
 
     setIsSubmitting(true);
     try {
-      // 1. Upload Foto
+     // 1. Upload Foto
       const photoName = `bike-${Date.now()}-${photo.name}`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
       const { data: photoData } = supabase.storage.from("gili-storage").getPublicUrl(photoName);
