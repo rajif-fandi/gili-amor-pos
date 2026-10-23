@@ -404,17 +404,19 @@ export async function submitLaundryOrder(data: {
   room: string;
   guest_name: string;
   whatsapp: string;
-  items: Record<string, number>;
+  items_detail: Record<string, number>; // Diubah dari 'items' menjadi 'items_detail'
   total_pcs: number;
   notes?: string;
 }) {
   try {
+    const orderNo = `LND-${Date.now().toString().slice(-6)}`;
     const order = await prisma.laundryOrder.create({
       data: {
+        order_no: orderNo,
         room: data.room,
         guest_name: data.guest_name,
         whatsapp: data.whatsapp,
-        items: data.items,
+        items_detail: data.items_detail, // Dicocokkan dengan schema.prisma
         total_pcs: data.total_pcs,
         notes: data.notes || "",
         status: "PENDING",
