@@ -17,7 +17,7 @@ const CLOTHES_LIST = [
 ];
 
 const css = `
-  html, body { overflow-x: hidden; max-width: 100%; }
+  html, body { width: 100% !important; min-width: 0 !important; max-width: 100vw !important; margin: 0 !important; overflow-x: hidden; }
   .lf * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; min-width: 0; }
   .lf { width: 100%; overflow-x: hidden; min-height: 100dvh; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
   .lf-wrap { max-width: 480px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
