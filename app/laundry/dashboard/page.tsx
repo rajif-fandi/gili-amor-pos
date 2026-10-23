@@ -8,11 +8,11 @@ interface LaundryOrder {
   room: string;
   guest_name: string;
   whatsapp: string;
-  items_detail: Record<string, number>;
+  items_detail: any; // Menggunakan 'any' sementara agar aman dari error tipe data JSON Prisma
   total_pcs: number;
-  notes?: string;
+  notes?: string | null;
   status: string;
-  created_at: string;
+  created_at: string | Date;
 }
 
 export default function LaundryDashboard() {
@@ -25,7 +25,7 @@ export default function LaundryDashboard() {
     if (res.success && res.data) {
       setOrders(res.data);
     } else {
-      alert("Gagal memuat data laundry: " + res.error);
+      alert("Gagal memuat data laundry: " + (res.error || "Unknown error"));
     }
     setLoading(false);
   };
@@ -78,8 +78,8 @@ export default function LaundryDashboard() {
                 <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px" }}>
                   <strong style={{ display: "block", marginBottom: "6px", color: "#475569" }}>Rincian Pakaian ({order.total_pcs} Pcs):</strong>
                   <ul style={{ margin: 0, paddingLeft: "16px", color: "#334155" }}>
-                    {order.items_detail && Object.entries(order.items_detail).map(([item, qty]) => (
-                      <li key={item}>{item}: <strong>{qty as number}x</strong></li>
+                    {order.items_detail && typeof order.items_detail === 'object' && Object.entries(order.items_detail).map(([item, qty]) => (
+                      <li key={item}>{item}: <strong>{String(qty)}x</strong></li>
                     ))}
                   </ul>
                 </div>
