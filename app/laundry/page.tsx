@@ -17,8 +17,9 @@ const CLOTHES_LIST = [
 ];
 
 const css = `
-  .lf * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  .lf { min-height: 100dvh; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .lf * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; min-width: 0; }
+  .lf { width: 100%; overflow-x: hidden; min-height: 100dvh; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
   .lf-wrap { max-width: 480px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .lf-hero { background: linear-gradient(135deg, #0369a1, #0ea5e9); color: #fff; padding: 28px 20px 56px; text-align: center; border-radius: 0 0 28px 28px; }
   .lf-hero h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 3px; }
@@ -35,7 +36,8 @@ const css = `
   .lf-field:last-child { margin-bottom: 0; }
   .lf-input { display: block; width: 100%; margin-top: 6px; padding: 14px; font-size: 16px; font-family: inherit; color: #0f172a; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; outline: none; }
   .lf-input:focus { border-color: #0ea5e9; background: #fff; box-shadow: 0 0 0 3px rgba(14,165,233,.15); }
-  .lf-row { display: flex; gap: 10px; }
+  .lf-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; margin-bottom: 14px; }
+  .lf-row .lf-field { margin-bottom: 0; }
   .lf-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; transition: background .15s; }
   .lf-item:last-child { border-bottom: none; }
   .lf-item.on { background: #f0f9ff; margin: 0 -18px; padding: 10px 18px; }
@@ -159,11 +161,11 @@ export default function LaundryForm() {
             <div className="lf-card">
               <h3 className="lf-title">Guest Information</h3>
               <div className="lf-row">
-                <label className="lf-field" style={{ width: "32%" }}>
+                <label className="lf-field">
                   Room *
                   <input className="lf-input" required inputMode="numeric" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="27" />
                 </label>
-                <label className="lf-field" style={{ width: "68%" }}>
+                <label className="lf-field">
                   Full Name *
                   <input className="lf-input" required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Nama Tamu" />
                 </label>
