@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { submitLaundryOrder } from "../actions";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://havaerpmltfzuupgwnzu.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const CLOTHES_LIST = [
   "Shorts (Celana Pendek)", "Long Pants (Celana Panjang)", 
@@ -48,27 +52,33 @@ export default function LaundryForm() {
     
     setIsSubmitting(true);
     try {
-      // Menyaring pakaian yang jumlahnya > 0 saja
       const activeItems = Object.fromEntries(
         Object.entries(clothes).filter(([_, qty]) => qty > 0)
       );
 
-      const res = await submitLaundryOrder({
-        room: formData.room,
-        guest_name: formData.guest_name,
-        whatsapp: formData.whatsapp,
-        items_detail: activeItems,
-        total_pcs: totalItems,
-        notes: formData.notes
-      });
+      const orderNo = `LND-${Date.now().toString().slice(-6)}`;
 
-      if (res && res.success) {
-        setIsSuccess(true);
-      } else {
-        alert("Gagal mengirim pesanan: " + (res?.error || "Terjadi kesalahan pada server"));
+      // Menyimpan langsung ke tabel Supabase LaundryOrder
+      const { error } = await supabase.from("LaundryOrder").insert([
+        {
+          order_no: orderNo,
+          room: formData.room,
+          guest_name: formData.guest_name,
+          whatsapp: formData.whatsapp,
+          items_detail: activeItems,
+          total_pcs: totalItems,
+          notes: formData.notes || "",
+          status: "PENDING"
+        }
+      ]);
+
+      if (error) {
+        throw new Error(error.message);
       }
+
+      setIsSuccess(true);
     } catch (err: any) {
-      alert("Terjadi kesalahan: " + err.message);
+      alert("Gagal mengirim pesanan: " + err.message);
     }
     setIsSubmitting(false);
   };
@@ -108,7 +118,6 @@ export default function LaundryForm() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ width: "100%", boxSizing: "border-box" }}>
-          
           <h3 style={{ fontSize: "15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#1e293b" }}>GUEST INFORMATION</h3>
           
           <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "12px", width: "100%" }}>
