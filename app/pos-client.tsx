@@ -136,7 +136,7 @@ const navItems = [
 
 
 // =========================================================================================
-// NEW LAUNDRY DASHBOARD CONTENT - LAYOUT FIXED
+// NEW LAUNDRY DASHBOARD CONTENT - LAYOUT FIXED & CLEANED
 // =========================================================================================
 function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const [orders, setOrders] = useState<any[]>([]);
@@ -200,7 +200,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
 
   return (
     <section className="workspace-screen">
-      {/* HEADER ATAS - MENGGUNAKAN CLASS WORKSPACE HEADER */}
+      {/* HEADER ATAS - TOMBOL LOGOUT DIHAPUS */}
       <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, color: '#15803d', fontSize: '24px', fontWeight: 'bold' }}>Giliamor Laundry List</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -210,13 +210,9 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
           <button onClick={exportExcel} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Icon name="download" size={16} /> Export Excel
           </button>
-          <button style={{ padding: '8px 16px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-            Logout
-          </button>
         </div>
       </header>
 
-      {/* WORKSPACE CONTENT - MENGISI SISA LAYAR DENGAN RAPI */}
       <div className="workspace-content" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
         {/* FILTER BAR */}
@@ -240,25 +236,25 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
           </button>
         </div>
 
-        {/* TABEL DATA LAUNDRY - BISA DISUBLIDE / SCROLL MENYAMPING JIKA KEPANJANGAN */}
-        <div style={{ width: '100%', overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1300px' }}>
+        {/* TABEL DATA LAUNDRY - FIT NORMAL TANPA SCROLL DALAM */}
+        <div style={{ width: '100%', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#374151', color: '#ffffff', textAlign: 'left' }}>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>No</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Kamar</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Nama Tamu</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>WhatsApp / No HP</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '220px' }}>Rincian Pakaian</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>WhatsApp</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Rincian Pakaian</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Pcs</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Catatan</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '90px' }}>Berat (Kg)</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Berat (Kg)</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Layanan</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '110px' }}>Total Harga</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Harga</th>
                 <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Status</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Metode Bayar</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Waktu WITA</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569', width: '110px' }}>Aksi Kasir</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Bayar</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Waktu</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -277,7 +273,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                     <td style={{ padding: '16px 12px', color: '#334155' }}>{order.guest_name}</td>
                     <td style={{ padding: '16px 12px' }}>
                       <a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {order.whatsapp} <small>(Chat WA ↗)</small>
+                        {order.whatsapp}
                       </a>
                     </td>
                     <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>
@@ -285,15 +281,17 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
                         : '-'}
                     </td>
-                    <td style={{ padding: '16px 12px' }}>
-                      <span style={{ background: '#2563eb', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>{order.total_pcs} Pcs</span>
+                    
+                    {/* TOTAL PCS - BACKGROUND BIRU DIHILANGKAN */}
+                    <td style={{ padding: '16px 12px', fontWeight: 'bold', color: '#0f172a' }}>
+                      {order.total_pcs} Pcs
                     </td>
+                    
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
                     
-                    {/* KOLOM INPUT & DROPDOWN AKTIF (Hanya jika belum DONE) */}
                     <td style={{ padding: '16px 12px' }}>
                       {isDone ? <strong>{order.weight_kg} Kg</strong> : (
-                        <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '60px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
+                        <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '50px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
                       )}
                     </td>
                     <td style={{ padding: '16px 12px' }}>
@@ -305,7 +303,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                     </td>
                     <td style={{ padding: '16px 12px' }}>
                       {isDone ? <strong>{formatIDR(order.total_price)}</strong> : (
-                        <input type="number" placeholder="Rp Total" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '80px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
+                        <input type="number" placeholder="Rp" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '70px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
                       )}
                     </td>
                     <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>
@@ -319,19 +317,16 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                       )}
                     </td>
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
-                      {new Date(order.created_at).toLocaleString('id-ID')}
+                      {new Date(order.created_at).toLocaleDateString('id-ID')}
                     </td>
-                    
-                    {/* AKSI KASIR */}
                     <td style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {isDone ? (
-                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#16a34a' }}>✓ Processed by {order.staff_name}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>✓ {order.staff_name}</span>
                       ) : (
                         <>
-                          <button onClick={() => handleProcess(order.id)} style={{ padding: '6px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Done</button>
-                          <button style={{ padding: '6px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                          <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', fontSize: '11px' }}>
-                            <option value="">Pilih FO</option>
+                          <button onClick={() => handleProcess(order.id)} style={{ padding: '4px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Done</button>
+                          <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '10px' }}>
+                            <option value="">FO</option>
                             {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
                           </select>
                         </>
