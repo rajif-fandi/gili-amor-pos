@@ -10,6 +10,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// PROJECT URL ASLI ANDA (Bypass error /rest/v1)
+const PROJECT_URL = "https://havaerpmltfzuupgwnzu.supabase.co";
+
 export default function BikeRentalForm() {
   const [formData, setFormData] = useState({
     room: "", guest_name: "", whatsapp: "", bike_type: "Standard Bicycle", duration_days: 1
@@ -35,26 +38,28 @@ export default function BikeRentalForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!photo) return alert("Wajib melampirkan foto kondisi sepeda sebelum menyewa!");
-    if (sigCanvas.current?.isEmpty()) return alert("Tanda tangan digital wajib diisi!");
+    if (!photo) return alert("Wajib melampirkan foto kondisi sepeda!");
+    if (sigCanvas.current?.isEmpty()) return alert("Tanda tangan wajib diisi!");
 
     setIsSubmitting(true);
     try {
-      // 1. Upload Foto Sepeda (Format Nama Aman Tanpa Karakter Asli)
+      // 1. Upload Foto Sepeda
       const photoName = `bike-${Date.now()}.jpg`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
-      const { data: photoData } = supabase.storage.from("gili-storage").getPublicUrl(photoName);
-      const photoUrl = photoData.publicUrl;
+      
+      // SOLUSI FOTO: Hardcode URL asli agar tidak error "Invalid Path"
+      const photoUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${photoName}`;
 
       // 2. Upload Tanda Tangan
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
       await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
-      const { data: sigData } = supabase.storage.from("gili-storage").getPublicUrl(sigName);
-      const sigUrl = sigData.publicUrl;
+      
+      // SOLUSI FOTO: Hardcode URL asli agar tidak error "Invalid Path"
+      const sigUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${sigName}`;
 
-      // 3. Simpan Data
+      // 3. Simpan ke Database
       const res = await submitBikeRental({
         ...formData,
         photo_url: photoUrl,
@@ -71,10 +76,10 @@ export default function BikeRentalForm() {
 
   if (isSuccess) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", fontFamily: "sans-serif", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
         <div style={{ background: "#fff", padding: "30px 20px", borderRadius: "16px", textAlign: "center", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
           <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
-          <h2 style={{ color: "#0f172a", marginBottom: "10px", fontSize: "20px" }}>Order Submitted!</h2>
+          <h2 style={{ color: "#0f172a", marginBottom: "10px", fontSize: "20px", marginTop: 0 }}>Order Submitted!</h2>
           <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6", marginBottom: "24px" }}>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
           <button 
             onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }} 
@@ -82,13 +87,13 @@ export default function BikeRentalForm() {
             Rent Another Bike
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "16px", fontFamily: "sans-serif", width: "100vw", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", maxWidth: "500px", margin: "0 auto", background: "#fff", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f1f5f9", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: "500px", backgroundColor: "#fff", minHeight: "100vh", boxSizing: "border-box", boxShadow: "0 0 15px rgba(0,0,0,0.05)" }}>
         
         <div style={{ backgroundColor: "#0f172a", padding: "20px", color: "#fff", textAlign: "center", boxSizing: "border-box" }}>
           <img src="/logo-gili.png" alt="Gili Amor" style={{ height: "45px", marginBottom: "10px", objectFit: "contain" }} />
@@ -96,8 +101,9 @@ export default function BikeRentalForm() {
           <p style={{ fontSize: "12px", opacity: 0.8, margin: 0 }}>DIGITAL RENTAL & AGREEMENT FORM</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "16px", boxSizing: "border-box", width: "100%" }}>
-          <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold" }}>GUEST INFORMATION</h3>
+        <form onSubmit={handleSubmit} style={{ padding: "20px", boxSizing: "border-box", width: "100%" }}>
+          
+          <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold", marginTop: 0 }}>GUEST INFORMATION</h3>
           
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px", width: "100%", boxSizing: "border-box" }}>
             <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", width: "100%", boxSizing: "border-box" }}>
@@ -110,7 +116,7 @@ export default function BikeRentalForm() {
             </label>
           </div>
           
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "20px", width: "100%", boxSizing: "border-box" }}>
+          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "24px", width: "100%", boxSizing: "border-box" }}>
             WHATSAPP NUMBER
             <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="e.g. +628..." style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", width: "100%", boxSizing: "border-box" }} />
           </label>
@@ -137,7 +143,7 @@ export default function BikeRentalForm() {
             </div>
           </label>
 
-          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginBottom: "20px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
+          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginBottom: "24px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
             <span style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Estimated Price:</span>
             <strong style={{ fontSize: "20px", color: "#0f172a" }}>Rp {estimatedPrice.toLocaleString("id-ID")}</strong>
           </div>
@@ -169,19 +175,19 @@ export default function BikeRentalForm() {
               <button type="button" onClick={clearSignature} style={{ fontSize: "12px", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "bold" }}>Clear</button>
             </div>
             
-            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", width: "100%", boxSizing: "border-box" }}>
+            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
               {/* @ts-ignore */}
-              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ style: { width: "100%", height: "160px", touchAction: "none" } }} />
+              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ style: { width: "100%", height: "160px", display: "block", touchAction: "none" } }} />
             </div>
             
             <p style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>I have read, understand, and certify my compliance by signature.</p>
           </div>
 
-          <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(16, 185, 129, 0.2)", boxSizing: "border-box" }}>
+          <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(16, 185, 129, 0.2)", boxSizing: "border-box", marginTop: "8px" }}>
             {isSubmitting ? "Uploading Securely..." : "CONFIRM & AGREE RENTAL"}
           </button>
         </form>
       </div>
-    </main>
+    </div>
   );
 }
