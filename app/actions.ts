@@ -400,3 +400,40 @@ export async function processBikeRental(id: string, data: {
     return { success: false, error: error.message };
   }
 }
+export async function submitLaundryOrder(data: {
+  room: string;
+  guest_name: string;
+  whatsapp: string;
+  items: Record<string, number>;
+  total_pcs: number;
+  notes?: string;
+}) {
+  try {
+    const order = await prisma.laundryOrder.create({
+      data: {
+        room: data.room,
+        guest_name: data.guest_name,
+        whatsapp: data.whatsapp,
+        items: data.items,
+        total_pcs: data.total_pcs,
+        notes: data.notes || "",
+        status: "PENDING",
+      },
+    });
+    return { success: true, data: order };
+  } catch (error: any) {
+    console.error("Laundry error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getLaundryOrders() {
+  try {
+    const orders = await prisma.laundryOrder.findMany({
+      orderBy: { created_at: 'desc' }
+    });
+    return { success: true, data: orders };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

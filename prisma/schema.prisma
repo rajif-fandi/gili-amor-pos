@@ -41,32 +41,32 @@ model MasterItem {
 
 // 3. DATA TRANSAKSI UTAMA
 model Transaksi {
-  no_transaksi   String            @id
-  tanggal        DateTime          @default(now())
-  waktu          DateTime          @default(now())
-  desk           String?
-  nama_tamu      String?
-  room           String?
-  reference      String?
-  grand_total    Int
-  amount_paid    Int
-  balance        Int
-  payment_status String
-  payment_method String
-  remark         String?
+  no_transaksi    String            @id
+  tanggal         DateTime          @default(now())
+  waktu           DateTime          @default(now())
+  desk            String?
+  nama_tamu       String?
+  room            String?
+  reference       String?
+  grand_total     Int
+  amount_paid     Int
+  balance         Int
+  payment_status  String
+  payment_method  String
+  remark          String?
 
   // --- INI 5 BARIS BARU YANG DITAMBAHKAN ---
-  arrival_date   String?
-  checkout_date  String?
-  booking_source String?
-  notes          String?
-  active         Boolean           @default(true)
+  arrival_date    String?
+  checkout_date   String?
+  booking_source  String?
+  notes           String?
+  active          Boolean           @default(true)
   // -----------------------------------------
 
-  staff_id       String
-  staff          Staff             @relation(fields: [staff_id], references: [staff_id])
+  staff_id        String
+  staff           Staff             @relation(fields: [staff_id], references: [staff_id])
 
-  details        DetailTransaksi[]
+  details         DetailTransaksi[]
 }
 
 // 4. RINCIAN KERANJANG BARANG

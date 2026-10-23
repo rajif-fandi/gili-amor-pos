@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { submitLaundryOrder } from "../actions";
 
 const CLOTHES_LIST = [
   "Shorts (Celana Pendek)", "Long Pants (Celana Panjang)", 
@@ -46,10 +47,30 @@ export default function LaundryForm() {
     if (totalItems === 0) return alert("Silakan masukkan minimal 1 pakaian!");
     
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-    }, 1000);
+    try {
+      // Menyaring pakaian yang jumlahnya > 0 saja agar JSON di database bersih
+      const activeItems = Object.fromEntries(
+        Object.entries(clothes).filter(([_, qty]) => qty > 0)
+      );
+
+      const res = await submitLaundryOrder({
+        room: formData.room,
+        guest_name: formData.guest_name,
+        whatsapp: formData.whatsapp,
+        items_detail: activeItems,
+        total_pcs: totalItems,
+        notes: formData.notes
+      });
+
+      if (res.success) {
+        setIsSuccess(true);
+      } else {
+        alert("Gagal mengirim pesanan: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Terjadi kesalahan: " + err.message);
+    }
+    setIsSubmitting(false);
   };
 
   if (isSuccess) {
@@ -134,7 +155,7 @@ export default function LaundryForm() {
           </label>
 
           <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "30px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(2, 132, 199, 0.2)", boxSizing: "border-box", marginBottom: "20px" }}>
-            {isSubmitting ? "Processing..." : "SUBMIT LAUNDRY ORDER"}
+            {isSubmitting ? "Submitting Order..." : "SUBMIT LAUNDRY ORDER"}
           </button>
         </form>
       </div>
