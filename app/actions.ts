@@ -384,6 +384,7 @@ export async function processBikeRental(id: string, data: {
   staff_name: string;
 }) {
   try {
+    // 1. Update status sepeda menjadi DONE
     const updated = await prisma.bikeRental.update({
       where: { id },
       data: {
@@ -394,6 +395,46 @@ export async function processBikeRental(id: string, data: {
         status: "DONE"
       }
     });
+
+    // 2. Pastikan Master Item "E-BIKE" ada
+    const exists = await prisma.masterItem.findUnique({
+      where: { item_code: "E-BIKE" }
+    });
+    if (!exists) {
+      await prisma.masterItem.create({
+        data: {
+          item_code: "E-BIKE", item_service: "E-Bike Rental", default_rate: 0,
+          category: "RENTAL", billing_type: "PER_DAY", desk: "bike",
+          notes: "Auto-generated", active: true
+        }
+      });
+    }
+
+    // 3. Masukkan datanya ke tabel Transaksi utama
+    const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
+
+    await prisma.transaksi.create({
+      data: {
+        no_transaksi: "TRX-BIKE-" + Date.now(),
+        nama_tamu: updated.guest_name || "Bike Guest",
+        payment_method: data.payment_method,
+        grand_total: Number(data.total_price),
+        amount_paid: Number(data.total_price),
+        balance: 0,
+        payment_status: "PAID",
+        room: updated.room || "-",
+        staff_id: staff ? staff.staff_id : "STF-DEFAULT",
+        notes: `Bike Rental - Unit ${data.unit_no} (${updated.duration_days} Days)`,
+        details: {
+          create: [{
+            item_code: "E-BIKE", qty: 1, duration: updated.duration_days || 1, discount: 0,
+            rate: Number(data.total_price), total: Number(data.total_price),
+          }],
+        },
+      },
+    });
+
+    revalidatePath('/');
     return { success: true, data: updated };
   } catch (error: any) {
     console.error("ERROR PROCESS BIKE:", error);
@@ -447,6 +488,7 @@ export async function processLaundryOrder(id: string, data: {
   staff_name: string;
 }) {
   try {
+    // 1. Update status laundry menjadi DONE
     const updated = await prisma.laundryOrder.update({
       where: { id },
       data: {
@@ -458,6 +500,46 @@ export async function processLaundryOrder(id: string, data: {
         status: "DONE"
       }
     });
+
+    // 2. Pastikan ada Master Item "LAUNDRY" agar bisa masuk ke laporan
+    const exists = await prisma.masterItem.findUnique({
+      where: { item_code: "LAUNDRY" }
+    });
+    
+    if (!exists) {
+      await prisma.masterItem.create({
+        data: {
+          item_code: "LAUNDRY", item_service: "Laundry Service", default_rate: 0,
+          category: "CHARGE", billing_type: "PER_UNIT", desk: "laundry",
+          notes: "Auto-generated", active: true
+        }
+      });
+    }
+
+    // 3. Masukkan datanya ke tabel Transaksi utama agar muncul di Reports!
+    const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
+    
+    await prisma.transaksi.create({
+      data: {
+        no_transaksi: "TRX-LND-" + Date.now(),
+        nama_tamu: updated.guest_name || "Laundry Guest",
+        payment_method: data.payment_method,
+        grand_total: Number(data.total_price),
+        amount_paid: Number(data.total_price),
+        balance: 0,
+        payment_status: "PAID",
+        room: updated.room || "-",
+        staff_id: staff ? staff.staff_id : "STF-DEFAULT",
+        notes: `Laundry ${data.service_type} - ${data.weight_kg} Kg`,
+        details: {
+          create: [{
+            item_code: "LAUNDRY", qty: 1, duration: 1, discount: 0,
+            rate: Number(data.total_price), total: Number(data.total_price),
+          }],
+        },
+      },
+    });
+
     revalidatePath('/');
     return { success: true, data: updated };
   } catch (error: any) {
