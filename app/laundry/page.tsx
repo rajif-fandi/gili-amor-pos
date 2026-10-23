@@ -48,7 +48,7 @@ export default function LaundryForm() {
     
     setIsSubmitting(true);
     try {
-      // Menyaring pakaian yang jumlahnya > 0 saja agar JSON di database bersih
+      // Menyaring pakaian yang jumlahnya > 0 saja
       const activeItems = Object.fromEntries(
         Object.entries(clothes).filter(([_, qty]) => qty > 0)
       );
@@ -62,10 +62,10 @@ export default function LaundryForm() {
         notes: formData.notes
       });
 
-      if (res.success) {
+      if (res && res.success) {
         setIsSuccess(true);
       } else {
-        alert("Gagal mengirim pesanan: " + res.error);
+        alert("Gagal mengirim pesanan: " + (res?.error || "Terjadi kesalahan pada server"));
       }
     } catch (err: any) {
       alert("Terjadi kesalahan: " + err.message);

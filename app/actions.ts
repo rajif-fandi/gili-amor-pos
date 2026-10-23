@@ -404,7 +404,7 @@ export async function submitLaundryOrder(data: {
   room: string;
   guest_name: string;
   whatsapp: string;
-  items_detail: Record<string, number>; // Diubah dari 'items' menjadi 'items_detail'
+  items_detail: Record<string, number>;
   total_pcs: number;
   notes?: string;
 }) {
@@ -416,8 +416,8 @@ export async function submitLaundryOrder(data: {
         room: data.room,
         guest_name: data.guest_name,
         whatsapp: data.whatsapp,
-        items_detail: data.items_detail, // Dicocokkan dengan schema.prisma
-        total_pcs: data.total_pcs,
+        items_detail: data.items_detail, // Menyimpan objek JSON rincian pakaian
+        total_pcs: Number(data.total_pcs),
         notes: data.notes || "",
         status: "PENDING",
       },
