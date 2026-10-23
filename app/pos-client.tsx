@@ -60,9 +60,7 @@ const globalPrintStyle = `
     .print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 40px; font-family: 'Helvetica Neue', Arial, sans-serif; color: #0f172a; visibility: visible; }
     .print-area * { visibility: visible; }
     .hide-on-print { display: none !important; }
-    
     .print-area h2 { text-align: center; font-size: 24px; margin-top: 0; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-    
     .print-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
     .print-table th { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #cbd5e1; padding: 14px 12px; font-size: 13px; text-align: left; text-transform: uppercase; font-weight: bold; }
     .print-table td { border: 1px solid #cbd5e1; padding: 12px; font-size: 13px; vertical-align: top; }
@@ -126,6 +124,7 @@ const navItems = [
   { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Buy", icon: "buy" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Bike Dashboard", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "Laundry Dashboard", icon: "laundry" as IconName, roles: ["Admin", "Kasir"] }, // <-- MENU LAUNDRY DITAMBAHKAN DI SINI
   { label: "Case / Follow-up", icon: "case" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Payment Database", icon: "database" as IconName, roles: ["Admin"] },
   { label: "Case Report", icon: "reports" as IconName, roles: ["Admin"] },
@@ -135,9 +134,88 @@ const navItems = [
   { label: "Staff", icon: "staff" as IconName, roles: ["Admin"] },
 ];
 
+// KOMPONEN LAUNDRY DASHBOARD LANGSUNG DI DALAM FILE INI
+function LaundryDashboardContent() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/laundry-orders').then(r => r.json()).catch(() => null);
+      if (res && res.success) setOrders(res.data || []);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  return (
+    <section className="workspace-screen" style={{ minHeight: "100vh", backgroundColor: "#f8fafc", padding: "24px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: "1000px", margin: "0 auto", width: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", background: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+          <div>
+            <h1 style={{ fontSize: "22px", color: "#0f172a", margin: "0 0 4px 0" }}>Laundry Dashboard</h1>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Kelola dan pantau pesanan laundry tamu secara real-time</p>
+          </div>
+          <button onClick={fetchOrders} style={{ padding: "10px 16px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+            Refresh Data
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "#64748b", fontSize: "15px" }}>Memuat data pesanan...</div>
+        ) : orders.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", background: "#fff", borderRadius: "12px", color: "#64748b", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+            Belum ada pesanan laundry yang masuk saat ini.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
+            {orders.map((order) => (
+              <div key={order.id} style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: order.status === "DONE" ? "5px solid #10b981" : "5px solid #f59e0b", boxSizing: "border-box" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <div>
+                    <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>{order.order_no}</span>
+                    <h3 style={{ fontSize: "16px", color: "#0f172a", margin: "2px 0 0 0" }}>Room {order.room} - {order.guest_name}</h3>
+                  </div>
+                  <span style={{ padding: "4px 8px", borderRadius: "20px", fontSize: "11px", fontWeight: "bold", background: order.status === "DONE" ? "#d1fae5" : "#fef3c7", color: order.status === "DONE" ? "#065f46" : "#92400e" }}>
+                    {order.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: "13px", color: "#334155", marginBottom: "12px" }}>
+                  <strong>WhatsApp:</strong> {order.whatsapp}
+                </div>
+                <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px" }}>
+                  <strong style={{ display: "block", marginBottom: "6px", color: "#475569" }}>Rincian Pakaian ({order.total_pcs} Pcs):</strong>
+                  <ul style={{ margin: 0, paddingLeft: "16px", color: "#334155" }}>
+                    {order.items_detail && typeof order.items_detail === 'object' && Object.entries(order.items_detail).map(([item, qty]) => (
+                      <li key={item}>{item}: <strong>{String(qty)}x</strong></li>
+                    ))}
+                  </ul>
+                </div>
+                {order.notes && (
+                  <div style={{ fontSize: "12px", color: "#b45309", background: "#fef3c7", padding: "8px", borderRadius: "6px", marginBottom: "12px" }}>
+                    <strong>Catatan:</strong> {order.notes}
+                  </div>
+                )}
+                <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "right" }}>
+                  {new Date(order.created_at).toLocaleString("id-ID")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: any[], cases?: any[] }) {
   const [period, setPeriod] = useState("Daily");
-  
   const filteredTx = useMemo(() => {
     const now = new Date();
     return transactions.filter(t => {
@@ -153,7 +231,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
     });
   }, [transactions, period]);
 
-  // 1. Data untuk Pie Chart (Category Revenue: Room, Rent, Boat, Retail)
   const catData = useMemo(() => {
     let rent = 0, boat = 0, buy = 0, charge = 0;
     filteredTx.forEach(t => {
@@ -172,7 +249,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
     ].filter(d => d.value > 0);
   }, [filteredTx]);
 
-  // 2. Data untuk Bar Chart (Payment Methods: Cash, Card, Bank Transfer, Room Charge)
   const paymentBarData = useMemo(() => {
     const methods = { Cash: 0, Card: 0, "Bank Transfer": 0, "Room Charge": 0 };
     filteredTx.forEach(t => {
@@ -195,13 +271,8 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
           <option value="Daily">Daily Report</option><option value="Weekly">Weekly Report</option><option value="Monthly">Monthly Report</option>
         </select>
       </header>
-
       <div className="workspace-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
-        
-        {/* Kolom Kiri: 2 Buah Chart */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* CHART 1: PIE CHART (Category Revenue) */}
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '340px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Category Revenue Distribution ({period})</h3>
             <ResponsiveContainer width="100%" height="85%">
@@ -214,8 +285,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
               </PieChart>
             </ResponsiveContainer>
           </div>
-
-          {/* CHART 2: BAR CHART (Payment Methods: Cash, Card, Bank, Room Charge) */}
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', height: '340px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>Payment Method Breakdown ({period})</h3>
             <ResponsiveContainer width="100%" height="85%">
@@ -230,10 +299,7 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
               </BarChart>
             </ResponsiveContainer>
           </div>
-
         </div>
-
-        {/* Kolom Kanan: In-House Guest & Agenda */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '340px', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px' }}>In-House Guest ({period})</h3>
@@ -243,7 +309,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
               </ul>
             ) : <p style={{ fontSize: '13px', color: '#64748b' }}>Belum ada tamu aktif.</p>}
           </div>
-
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '350px', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="clock" size={18} /> Agenda & Task (OPEN)</h3>
             {openCases.length > 0 ? openCases.map((c: any) => (
@@ -255,7 +320,6 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
             )) : <p style={{ fontSize: '13px', color: '#64748b' }}>Semua tugas selesai.</p>}
           </div>
         </div>
-
       </div>
     </section>
   );
@@ -265,7 +329,6 @@ function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: 
   const router = useRouter();
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const todaysTransactions = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
-  
   const transportTasks = cases.filter((c: any) => c.status === "OPEN" && c.case_type === "Guest Arrival / Transport");
 
   const handleResolveTask = async (caseNo: string) => {
@@ -288,7 +351,6 @@ function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: 
             </button>
           ))}
         </div>
-        
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '30px' }}>
           <section className="activity-panel">
             <div className="panel-heading"><div><h2>Recent Activities Detail</h2></div></div>
@@ -308,7 +370,6 @@ function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: 
               ))}
             </div>
           </section>
-
           <section className="activity-panel" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
             <div className="panel-heading"><div><h2 style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="bell" size={18} /> Arrival & Transport Alerts</h2></div></div>
             <div className="activity-list" style={{ padding: '16px' }}>
@@ -324,7 +385,6 @@ function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: 
             </div>
           </section>
         </div>
-
       </div>
     </section>
   );
@@ -356,7 +416,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
     <section className="workspace-screen">
       <style>{globalPrintStyle}</style>
       {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      
       <div className="print-area hide-on-screen">
         <h2>Daily Payment Report - {todayStr}</h2>
         <table className="print-table">
@@ -372,7 +431,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
           </tbody>
         </table>
       </div>
-
       <header className="workspace-header reports-header hide-on-print">
         <div><p className="eyebrow">FINANCIAL OVERVIEW</p><h1>Daily Payment Report</h1></div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -380,7 +438,6 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
           <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print All</button>
         </div>
       </header>
-      
       <div className="workspace-content hide-on-print">
         <div className="report-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           <article className="report-metric-card" style={{ padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}><div className="metric-icon mint" style={{ marginBottom: '12px' }}><Icon name="cash" size={23} /></div><div><p style={{ fontSize: '12px', color: '#64748b' }}>Total Cash</p><strong style={{ display: 'block', fontSize: '18px', marginTop: '4px' }}>{formatIDR(totalCash)}</strong></div></article>
@@ -493,7 +550,6 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
   const expectedCash = openingCash + cashSales;
   const [actualCash, setActualCash] = useState(expectedCash.toString());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const actualValue = Number(actualCash) || 0;
   const variance = actualValue - expectedCash;
 
@@ -548,7 +604,6 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
 function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
   const displayRows = transactions.filter(row => row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase()));
   
   const exportExcel = () => {
@@ -567,7 +622,6 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
     <section className="workspace-screen">
       <style>{globalPrintStyle}</style>
       {selectedReceipt && <ReceiptModal transaction={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
-      
       <div className="print-area hide-on-screen">
         <h2>Payment Database Master</h2>
         <table className="print-table">
@@ -583,7 +637,6 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
           </tbody>
         </table>
       </div>
-
       <header className="workspace-header database-header hide-on-print">
         <div><p className="eyebrow">TRANSACTIONS</p><h1>Payment Database</h1></div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -591,7 +644,6 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
           <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print All</button>
         </div>
       </header>
-      
       <div className="workspace-content hide-on-print">
         <section className="report-table-panel">
           <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -628,7 +680,6 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
   return (
     <section className="workspace-screen">
       <style>{globalPrintStyle}</style>
-      
       <div className="print-area hide-on-screen">
         <h2>Operational Case Report</h2>
         <table className="print-table">
@@ -642,7 +693,6 @@ function CaseReportDashboard({ cases = [] }: { cases?: any[] }) {
           </tbody>
         </table>
       </div>
-
       <header className="workspace-header hide-on-print">
         <div><p className="eyebrow">ANALYTICS</p><h1>Operational Case Report</h1></div>
         <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}><Icon name="printer" size={16} /> Print Report</button>
@@ -806,8 +856,6 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     <section className="workspace-screen">
       <header className="workspace-header"><div><p className="eyebrow">GILIAMOR BIKE</p><h1>Dashboard Laporan E-Bike</h1></div></header>
       <div className="workspace-content">
-        
-        {/* KOTAK PROFIT SHARING */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
             <span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span>
@@ -826,8 +874,6 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
             <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div>
           </div>
         </div>
-
-        {/* LIST PENYEWAAN SEPEDA */}
         <section className="report-table-panel">
           <div className="panel-heading"><h2>Daftar Pesanan Sepeda Tamu</h2></div>
           <div style={{ padding: '20px' }}>
@@ -845,7 +891,6 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span>
                   </div>
                 </div>
-
                 {bike.status === "PENDING" ? (
                   <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
@@ -870,8 +915,6 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <strong style={{ color: '#065f46' }}>Total: {formatIDR(bike.total_price)} ({bike.payment_method})</strong>
                   </div>
                 )}
-
-                {/* BAGIAN FOTO & TANDA TANGAN */}
                 <div style={{ display: 'flex', gap: '20px', marginTop: '16px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '220px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>FOTO KONDISI SEPEDA:</span>
@@ -911,7 +954,7 @@ export default function POSClientApp({
   const router = useRouter(); 
   const [currentStaff, setCurrentStaff] = useState<any>(null);
   const [activePage, setActivePage] = useState("Launchpad");
-  const [bikes, setBikes] = useState(initialBikes); // <--- STATE BARU UNTUK SEPEDA
+  const [bikes, setBikes] = useState(initialBikes);
 
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
@@ -919,11 +962,7 @@ export default function POSClientApp({
     else router.push("/login");
   }, [router]);
 
-  // --- KUNCI PERBAIKANNYA DI SINI ---
-  // Kita tarik data 'role' super segar langsung dari database berdasarkan PIN, mengabaikan memori browser yang usang
   const realStaffData = initialStaff?.find(s => s.pin === currentStaff?.pin) || currentStaff;
-  
-  // Sistem sekarang dijamin membaca hak akses asli dari database
   const isAdmin = realStaffData?.role === "Admin" || realStaffData?.position?.toLowerCase().includes("admin") || realStaffData?.posisi?.toLowerCase().includes("admin");
   const allowedNavs = navItems.filter(item => item.roles.includes(isAdmin ? "Admin" : "Kasir"));
 
@@ -931,12 +970,10 @@ export default function POSClientApp({
   const [query, setQuery] = useState("");
   const [payment, setPayment] = useState("Room Charge");
   const [guestName, setGuestName] = useState(""); 
-  
   const [cart, setCart] = useState<Record<string, {qty: number, price: number}>>({});
   const [bookingData, setBookingData] = useState({ arrival: "", checkout: "", source: "Direct", notes: "" });
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
-  
   const allProducts = initialProducts || [];
   let activeProducts = allProducts;
   let categories = ["All Items"];
@@ -947,14 +984,11 @@ export default function POSClientApp({
   else if (activePage === "Buy") { activeProducts = allProducts.filter(p => p.category === "RETAIL"); categories = ["All Items", "RETAIL"]; }
   
   const visibleProducts = useMemo(() => activeProducts.filter((p) => (activeCategory === "All Items" || p.category === activeCategory) && p.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
-  
   const cartItems = Object.entries(cart).map(([id, data]) => {
     const p = activeProducts.find(x => String(x.id) === id);
     return { ...p, id, name: p?.name || id, qty: data.qty, price: data.price, color: p?.color || 'blue', icon: p?.icon || 'room' };
   });
-  
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  
   const showAdvancedBooking = cartItems.some(item => {
     const n = item.name.toLowerCase();
     return n.includes("airport") || n.includes("transfer") || n.includes("boat") || n.includes("deposit");
@@ -1003,7 +1037,6 @@ export default function POSClientApp({
         </div>
       </aside>
 
-      {/* --- INI BAGIAN YANG DIPERBAIKI --- */}
       {activePage === "Launchpad" && <HomeDashboard onLaunch={(page) => setActivePage(page)} transactions={initialTransactions} cases={initialCases} />}
       {activePage === "Dashboard" && isAdmin && <DashboardAnalytics transactions={initialTransactions} cases={initialCases} />}
       {activePage === "Reports" && isAdmin && <ReportsDashboard transactions={initialTransactions} />}
@@ -1014,6 +1047,7 @@ export default function POSClientApp({
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
       {activePage === "Bike Dashboard" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "Laundry Dashboard" && <LaundryDashboardContent />}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">
@@ -1035,8 +1069,6 @@ export default function POSClientApp({
       </section>}
 
       {isPosPage && <aside className="order-panel" style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', borderLeft: '1px solid #e2e8f0' }}>
-        
-        {/* 1. Header Pemesanan (Tetap di Atas) */}
         <div className="order-top" style={{ flexShrink: 0, padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
           <div className="order-title" style={{ marginBottom: '16px' }}><div><h2>Current Order</h2></div></div>
           <div className="guest-fields" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1045,7 +1077,6 @@ export default function POSClientApp({
           </div>
         </div>
 
-        {/* 2. Daftar Belanjaan & Form Booking (Bisa di-scroll bersamaan) */}
         <div className="order-items" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {cartItems.map((item) => (
             <div className="cart-item" key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px dashed #e2e8f0' }}>
@@ -1066,10 +1097,8 @@ export default function POSClientApp({
               </div>
             </div>
           ))}
-          
           {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
 
-          {/* FORM BOOKING DIPINDAHKAN KE SINI (Di bawah list barang) */}
           {showAdvancedBooking && cartItems.length > 0 && (
             <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
               <h4 style={{ fontSize: '13px', marginBottom: '12px', color: '#0f172a' }}>Booking & Travel Details</h4>
@@ -1087,7 +1116,6 @@ export default function POSClientApp({
           )}
         </div>
 
-        {/* 3. Area Checkout (Tetap menempel di bawah, lebih ramping) */}
         <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
           <div style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
