@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { submitBikeRental } from "../actions";
 
-// Menghindari error SSR pada canvas tanda tangan
 const SignatureCanvas = dynamic(() => import("react-signature-canvas"), { ssr: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -41,25 +40,21 @@ export default function BikeRentalForm() {
 
     setIsSubmitting(true);
     try {
-      // 1. Upload Foto Sepeda ke Supabase
-      const photoName = `bike-${Date.now()}-${photo.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      // 1. Upload Foto Sepeda (Format Nama Aman Tanpa Karakter Asli)
+      const photoName = `bike-${Date.now()}.jpg`;
       await supabase.storage.from("gili-storage").upload(photoName, photo);
       const { data: photoData } = supabase.storage.from("gili-storage").getPublicUrl(photoName);
-      
-      // SOLUSI FINAL GAMBAR: Menempelkan param API Key secara paksa ke URL
-      const photoUrl = `${photoData.publicUrl}?apikey=${supabaseKey}`;
+      const photoUrl = photoData.publicUrl;
 
-      // 2. Upload Tanda Tangan ke Supabase
+      // 2. Upload Tanda Tangan
       const sigDataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       const sigBlob = await (await fetch(sigDataUrl)).blob();
       const sigName = `sig-${Date.now()}.png`;
       await supabase.storage.from("gili-storage").upload(sigName, sigBlob);
       const { data: sigData } = supabase.storage.from("gili-storage").getPublicUrl(sigName);
-      
-      // SOLUSI FINAL GAMBAR: Menempelkan param API Key secara paksa ke URL
-      const sigUrl = `${sigData.publicUrl}?apikey=${supabaseKey}`;
+      const sigUrl = sigData.publicUrl;
 
-      // 3. Simpan Data ke Database (Prisma)
+      // 3. Simpan Data
       const res = await submitBikeRental({
         ...formData,
         photo_url: photoUrl,
@@ -92,7 +87,7 @@ export default function BikeRentalForm() {
   }
 
   return (
-    <main style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "16px", fontFamily: "sans-serif", width: "100%", maxWidth: "100vw", overflowX: "hidden", boxSizing: "border-box" }}>
+    <main style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", padding: "16px", fontFamily: "sans-serif", width: "100vw", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: "500px", margin: "0 auto", background: "#fff", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", boxSizing: "border-box" }}>
         
         <div style={{ backgroundColor: "#0f172a", padding: "20px", color: "#fff", textAlign: "center", boxSizing: "border-box" }}>
@@ -174,10 +169,9 @@ export default function BikeRentalForm() {
               <button type="button" onClick={clearSignature} style={{ fontSize: "12px", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "bold" }}>Clear</button>
             </div>
             
-            {/* SOLUSI FINAL TATA LETAK: Mengamankan agar Tanda Tangan tidak mendobrak layar */}
-            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", overflow: "hidden", width: "100%", boxSizing: "border-box" }}>
+            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", width: "100%", boxSizing: "border-box" }}>
               {/* @ts-ignore */}
-              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ width: 300, height: 160, style: { width: "100%", height: "160px", touchAction: "none" } }} />
+              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ style: { width: "100%", height: "160px", touchAction: "none" } }} />
             </div>
             
             <p style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>I have read, understand, and certify my compliance by signature.</p>
