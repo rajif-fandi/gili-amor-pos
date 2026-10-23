@@ -16,6 +16,54 @@ const CLOTHES_LIST = [
   "Long Skirt (Rok Panjang)"
 ];
 
+const css = `
+  .lf * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  .lf { min-height: 100dvh; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
+  .lf-wrap { max-width: 480px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .lf-hero { background: linear-gradient(135deg, #0369a1, #0ea5e9); color: #fff; padding: 28px 20px 56px; text-align: center; border-radius: 0 0 28px 28px; }
+  .lf-hero h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 3px; }
+  .lf-hero p { margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 2px; opacity: .85; }
+  .lf-body { padding: 0 16px; margin-top: -36px; }
+  .lf-card { background: #fff; border-radius: 18px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(15,23,42,.06); }
+  .lf-title { margin: 0 0 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.2px; color: #0369a1; text-transform: uppercase; }
+  .lf-price { display: flex; gap: 10px; }
+  .lf-price div { flex: 1; border-radius: 14px; padding: 12px; }
+  .lf-price small { display: block; font-size: 11px; font-weight: 700; opacity: .8; }
+  .lf-price b { display: block; font-size: 15px; margin: 2px 0; }
+  .lf-price span { font-size: 12px; }
+  .lf-field { display: block; margin-bottom: 14px; font-size: 13px; font-weight: 700; color: #334155; }
+  .lf-field:last-child { margin-bottom: 0; }
+  .lf-input { display: block; width: 100%; margin-top: 6px; padding: 14px; font-size: 16px; font-family: inherit; color: #0f172a; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; outline: none; }
+  .lf-input:focus { border-color: #0ea5e9; background: #fff; box-shadow: 0 0 0 3px rgba(14,165,233,.15); }
+  .lf-row { display: flex; gap: 10px; }
+  .lf-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; transition: background .15s; }
+  .lf-item:last-child { border-bottom: none; }
+  .lf-item.on { background: #f0f9ff; margin: 0 -18px; padding: 10px 18px; }
+  .lf-name { flex: 1; font-size: 14px; font-weight: 600; line-height: 1.3; color: #334155; }
+  .lf-item.on .lf-name { color: #0369a1; font-weight: 800; }
+  .lf-stepper { display: flex; align-items: center; background: #f1f5f9; border-radius: 14px; padding: 4px; flex-shrink: 0; }
+  .lf-item.on .lf-stepper { background: #fff; box-shadow: inset 0 0 0 1.5px #bae6fd; }
+  .lf-btn { width: 40px; height: 40px; border: none; border-radius: 11px; font-size: 22px; font-weight: 700; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+  .lf-btn:active { transform: scale(.92); }
+  .lf-minus { background: #fff; color: #ef4444; }
+  .lf-item.on .lf-minus { background: #fee2e2; }
+  .lf-plus { background: #0ea5e9; color: #fff; }
+  .lf-qty { min-width: 32px; text-align: center; font-size: 17px; font-weight: 900; color: #94a3b8; }
+  .lf-item.on .lf-qty { color: #0f172a; }
+  .lf-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: rgba(255,255,255,.96); backdrop-filter: blur(10px); border-top: 1px solid #e2e8f0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .lf-bar-in { max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .lf-total small { display: block; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 1px; }
+  .lf-total b { font-size: 24px; font-weight: 900; color: #0369a1; }
+  .lf-submit { flex: 1; padding: 16px; border: none; border-radius: 14px; background: #0284c7; color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .5px; cursor: pointer; box-shadow: 0 6px 16px rgba(2,132,199,.3); touch-action: manipulation; }
+  .lf-submit:active { transform: scale(.98); }
+  .lf-submit:disabled { background: #94a3b8; box-shadow: none; }
+  .lf-ok { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; max-width: 480px; margin: 0 auto; }
+  .lf-ok-icon { width: 96px; height: 96px; border-radius: 50%; background: #10b981; color: #fff; font-size: 52px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(16,185,129,.35); }
+  .lf-ok h2 { margin: 0 0 12px; font-size: 28px; font-weight: 900; }
+  .lf-ok p { margin: 0 0 36px; color: #64748b; font-size: 16px; line-height: 1.6; }
+  .lf-ok button { width: 100%; padding: 18px; border: none; border-radius: 14px; background: #0284c7; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
+`;
+
 export default function LaundryForm() {
   const [formData, setFormData] = useState({ room: "", guest_name: "", whatsapp: "", notes: "" });
   const [clothes, setClothes] = useState<Record<string, number>>(
@@ -65,96 +113,106 @@ export default function LaundryForm() {
 
   if (isSuccess) {
     return (
-      <div style={{ width: "100%", minHeight: "100vh", backgroundColor: "#fff", padding: "40px 24px", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "90px", height: "90px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "50px", margin: "0 auto 24px" }}>✓</div>
-        <h2 style={{ color: "#0f172a", marginBottom: "16px", fontSize: "28px", marginTop: 0, textAlign: "center", fontWeight: "900" }}>Order Submitted!</h2>
-        <p style={{ color: "#64748b", fontSize: "18px", lineHeight: "1.6", marginBottom: "40px", textAlign: "center" }}>Thank you. Our housekeeping team will pick up your laundry shortly.</p>
-        <button onClick={() => { setIsSuccess(false); setClothes(CLOTHES_LIST.reduce((acc, item) => ({ ...acc, [item]: 0 }), {})); setFormData({ room: "", guest_name: "", whatsapp: "", notes: "" }); }} style={{ width: "100%", padding: "20px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "14px", fontWeight: "bold", cursor: "pointer", fontSize: "18px" }}>
-          Make Another Order
-        </button>
+      <div className="lf">
+        <style>{css}</style>
+        <div className="lf-ok">
+          <div className="lf-ok-icon">✓</div>
+          <h2>Order Submitted!</h2>
+          <p>Thank you. Our housekeeping team will pick up your laundry shortly.</p>
+          <button onClick={() => { setIsSuccess(false); setClothes(CLOTHES_LIST.reduce((acc, item) => ({ ...acc, [item]: 0 }), {})); setFormData({ room: "", guest_name: "", whatsapp: "", notes: "" }); }}>
+            Make Another Order
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      {/* MENGUNCI VIEWPORT AGAR PAS DI HP DAN TIDAK ZOOM IN/OUT */}
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
-
-      <div style={{ width: "100%", minHeight: "100vh", backgroundColor: "#f8fafc", margin: 0, padding: "16px 16px 60px 16px", boxSizing: "border-box", fontFamily: "sans-serif" }}>
-        
-        {/* HEADER UTAMA */}
-        <div style={{ textAlign: "center", marginBottom: "24px", paddingTop: "10px" }}>
-          <h1 style={{ fontSize: "26px", margin: "0 0 4px 0", color: "#0284c7", fontWeight: "900", letterSpacing: "1px" }}>GILIAMOR</h1>
-          <p style={{ fontSize: "12px", color: "#64748b", margin: 0, fontWeight: "bold", letterSpacing: "1px" }}>LAUNDRY DIGITAL FORM</p>
+    <div className="lf">
+      <style>{css}</style>
+      <div className="lf-wrap">
+        <div className="lf-hero">
+          <h1>GILIAMOR</h1>
+          <p>LAUNDRY DIGITAL FORM</p>
         </div>
 
-        {/* INFORMASI HARGA */}
-        <div style={{ backgroundColor: "#e0f2fe", borderRadius: "14px", padding: "16px", marginBottom: "24px", border: "1px solid #bae6fd", boxSizing: "border-box" }}>
-          <strong style={{ display: "block", color: "#0284c7", fontSize: "14px", marginBottom: "8px", borderBottom: "1px dashed #7dd3fc", paddingBottom: "6px" }}>
-            📢 SERVICE & PRICE:
-          </strong>
-          <div style={{ fontSize: "13px", color: "#0369a1", lineHeight: "1.5" }}>
-            <div style={{ marginBottom: "6px" }}>☕ <strong>Regular :</strong> $ 1.66 (Rp 30k) / Kg (24 Hours)</div>
-            <div>⚡ <strong>Express :</strong> $ 2.77 (Rp 50k) / Kg (5 Hours)</div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ width: "100%", boxSizing: "border-box" }}>
-          <h3 style={{ fontSize: "15px", borderBottom: "2px solid #cbd5e1", paddingBottom: "8px", marginBottom: "16px", color: "#0f172a", fontWeight: "900" }}>GUEST INFORMATION</h3>
-          
-          <div style={{ display: "flex", gap: "10px", marginBottom: "16px", width: "100%" }}>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: "13px", fontWeight: "700", color: "#334155", width: "30%" }}>
-              Room *
-              <input required value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="27" style={{ marginTop: "6px", padding: "14px 10px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "16px", width: "100%", boxSizing: "border-box", background: "#fff" }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: "13px", fontWeight: "700", color: "#334155", width: "70%" }}>
-              Full Name *
-              <input required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Nama Tamu" style={{ marginTop: "6px", padding: "14px 12px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "16px", width: "100%", boxSizing: "border-box", background: "#fff" }} />
-            </label>
-          </div>
-          
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "13px", fontWeight: "700", color: "#334155", marginBottom: "24px", width: "100%" }}>
-            WhatsApp / No HP *
-            <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="+62..." style={{ marginTop: "6px", padding: "14px 12px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "16px", width: "100%", boxSizing: "border-box", background: "#fff" }} />
-          </label>
-
-          <h3 style={{ fontSize: "15px", borderBottom: "2px solid #cbd5e1", paddingBottom: "8px", marginBottom: "16px", color: "#0f172a", fontWeight: "900" }}>CLOTHES CHECKLIST</h3>
-          
-          {/* DAFTAR CHECKLIST 1 KOLOM KE BAWAH */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px", width: "100%", boxSizing: "border-box" }}>
-            {CLOTHES_LIST.map((item) => (
-              <div key={item} style={{ border: "1px solid #cbd5e1", borderRadius: "12px", padding: "14px 16px", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#334155", flex: 1, paddingRight: "10px" }}>{item}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-                  <button type="button" onClick={() => handleQtyChange(item, -1)} style={{ width: "38px", height: "38px", borderRadius: "10px", background: "#ef4444", color: "#fff", border: "none", fontSize: "22px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
-                  <span style={{ fontSize: "18px", fontWeight: "900", color: "#0f172a", width: "24px", textAlign: "center" }}>{clothes[item]}</span>
-                  <button type="button" onClick={() => handleQtyChange(item, 1)} style={{ width: "38px", height: "38px", borderRadius: "10px", background: "#10b981", color: "#fff", border: "none", fontSize: "22px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                </div>
+        <div className="lf-body">
+          {/* HARGA */}
+          <div className="lf-card">
+            <h3 className="lf-title">Service & Price</h3>
+            <div className="lf-price">
+              <div style={{ background: "#e0f2fe", color: "#0369a1" }}>
+                <small>☕ REGULAR</small>
+                <b>$ 1.66 / Kg</b>
+                <span>Rp 30k · 24 Hours</span>
               </div>
-            ))}
-            
-            {/* KOTAK TOTAL */}
-            <div style={{ border: "2px dashed #f59e0b", borderRadius: "12px", padding: "20px", textAlign: "center", background: "#fef3c7", boxSizing: "border-box", marginTop: "10px" }}>
-              <span style={{ fontSize: "13px", fontWeight: "800", color: "#92400e", display: "block", marginBottom: "6px", letterSpacing: "1px" }}>TOTAL PAKAIAN</span>
-              <strong style={{ fontSize: "32px", color: "#dc2626", fontWeight: "900" }}>{totalItems} Pcs</strong>
+              <div style={{ background: "#fef3c7", color: "#92400e" }}>
+                <small>⚡ EXPRESS</small>
+                <b>$ 2.77 / Kg</b>
+                <span>Rp 50k · 5 Hours</span>
+              </div>
             </div>
           </div>
 
-          <h3 style={{ fontSize: "15px", borderBottom: "2px solid #cbd5e1", paddingBottom: "8px", marginBottom: "16px", color: "#0f172a", fontWeight: "900", marginTop: "30px" }}>SPECIAL REQUEST</h3>
-          
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "13px", fontWeight: "700", color: "#334155", marginBottom: "30px", width: "100%" }}>
-            Notes (Optional):
-            <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Tulis catatan di sini..." style={{ marginTop: "6px", padding: "14px 12px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "16px", width: "100%", boxSizing: "border-box", fontFamily: "inherit", background: "#fff" }} />
-          </label>
+          <form onSubmit={handleSubmit}>
+            {/* DATA TAMU */}
+            <div className="lf-card">
+              <h3 className="lf-title">Guest Information</h3>
+              <div className="lf-row">
+                <label className="lf-field" style={{ width: "32%" }}>
+                  Room *
+                  <input className="lf-input" required inputMode="numeric" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="27" />
+                </label>
+                <label className="lf-field" style={{ width: "68%" }}>
+                  Full Name *
+                  <input className="lf-input" required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Nama Tamu" />
+                </label>
+              </div>
+              <label className="lf-field">
+                WhatsApp / No HP *
+                <input className="lf-input" required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="+62..." />
+              </label>
+            </div>
 
-          <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "18px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "14px", fontSize: "18px", fontWeight: "900", cursor: "pointer", boxShadow: "0 6px 20px rgba(2, 132, 199, 0.3)", boxSizing: "border-box" }}>
-            {isSubmitting ? "MENGIRIM..." : "SUBMIT ORDER"}
-          </button>
-        </form>
+            {/* CHECKLIST */}
+            <div className="lf-card">
+              <h3 className="lf-title">Clothes Checklist</h3>
+              {CLOTHES_LIST.map((item) => (
+                <div key={item} className={"lf-item" + (clothes[item] > 0 ? " on" : "")}>
+                  <span className="lf-name">{item}</span>
+                  <div className="lf-stepper">
+                    <button type="button" className="lf-btn lf-minus" onClick={() => handleQtyChange(item, -1)} aria-label={"Kurangi " + item}>−</button>
+                    <span className="lf-qty">{clothes[item]}</span>
+                    <button type="button" className="lf-btn lf-plus" onClick={() => handleQtyChange(item, 1)} aria-label={"Tambah " + item}>+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* NOTES */}
+            <div className="lf-card">
+              <h3 className="lf-title">Special Request</h3>
+              <label className="lf-field">
+                Notes (Optional)
+                <textarea className="lf-input" rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Tulis catatan di sini..." />
+              </label>
+            </div>
+
+            {/* BAR BAWAH: TOTAL + SUBMIT (selalu terlihat) */}
+            <div className="lf-bar">
+              <div className="lf-bar-in">
+                <div className="lf-total">
+                  <small>TOTAL</small>
+                  <b>{totalItems} Pcs</b>
+                </div>
+                <button type="submit" className="lf-submit" disabled={isSubmitting}>
+                  {isSubmitting ? "MENGIRIM..." : "SUBMIT ORDER"}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
