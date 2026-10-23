@@ -12,6 +12,68 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PROJECT_URL = "https://havaerpmltfzuupgwnzu.supabase.co";
 
+const css = `
+  html, body { width: 100% !important; min-width: 0 !important; max-width: 100vw !important; margin: 0 !important; overflow-x: hidden; }
+  .bk * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; min-width: 0; }
+  .bk { width: 100%; overflow-x: hidden; min-height: 100dvh; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
+  .bk-wrap { max-width: 480px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .bk-hero { background: linear-gradient(135deg, #0369a1, #0ea5e9); color: #fff; padding: 24px 20px 56px; text-align: center; border-radius: 0 0 28px 28px; }
+  .bk-logo { display: inline-flex; background: #fff; border-radius: 14px; padding: 8px 14px; margin-bottom: 12px; }
+  .bk-logo img { height: 40px; object-fit: contain; display: block; }
+  .bk-hero h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 3px; }
+  .bk-hero p { margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 2px; opacity: .85; }
+  .bk-body { padding: 0 16px; margin-top: -36px; }
+  .bk-card { background: #fff; border-radius: 18px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(15,23,42,.06); }
+  .bk-title { margin: 0 0 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.2px; color: #0369a1; text-transform: uppercase; }
+  .bk-field { display: block; margin-bottom: 14px; font-size: 13px; font-weight: 700; color: #334155; }
+  .bk-field:last-child { margin-bottom: 0; }
+  .bk-input { display: block; width: 100%; margin-top: 6px; padding: 14px; font-size: 16px; font-family: inherit; color: #0f172a; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; outline: none; }
+  .bk-input:focus { border-color: #0ea5e9; background: #fff; box-shadow: 0 0 0 3px rgba(14,165,233,.15); }
+  .bk-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; margin-bottom: 14px; }
+  .bk-row .bk-field { margin-bottom: 0; }
+  .bk-opt { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; border: 2px solid #e2e8f0; border-radius: 14px; background: #fff; cursor: pointer; transition: all .15s; }
+  .bk-opt:last-child { margin-bottom: 0; }
+  .bk-opt.on { border-color: #0ea5e9; background: #f0f9ff; }
+  .bk-opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .bk-emoji { width: 46px; height: 46px; border-radius: 12px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  .bk-opt.on .bk-emoji { background: #e0f2fe; }
+  .bk-opt-text { flex: 1; }
+  .bk-opt-text strong { display: block; font-size: 15px; color: #0f172a; }
+  .bk-opt-text span { font-size: 13px; color: #64748b; }
+  .bk-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cbd5e1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .bk-opt.on .bk-dot { border-color: #0ea5e9; }
+  .bk-opt.on .bk-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #0ea5e9; }
+  .bk-dur { display: flex; align-items: center; justify-content: space-between; background: #f1f5f9; border-radius: 16px; padding: 6px; }
+  .bk-dur-btn { width: 52px; height: 52px; border: none; border-radius: 12px; font-size: 26px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+  .bk-dur-btn:active { transform: scale(.92); }
+  .bk-dur-minus { background: #fff; color: #ef4444; }
+  .bk-dur-plus { background: #0ea5e9; color: #fff; }
+  .bk-dur-num { text-align: center; }
+  .bk-dur-num b { display: block; font-size: 26px; font-weight: 900; line-height: 1; }
+  .bk-dur-num small { font-size: 12px; color: #64748b; font-weight: 700; }
+  .bk-photo { display: block; padding: 22px 12px; text-align: center; border: 2px dashed #bae6fd; border-radius: 14px; background: #f0f9ff; cursor: pointer; color: #0369a1; font-size: 14px; font-weight: 700; }
+  .bk-photo img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; display: block; }
+  .bk-photo-icon { font-size: 30px; display: block; margin-bottom: 6px; }
+  .bk-terms { font-size: 12px; color: #7f1d1d; line-height: 1.6; padding: 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px; }
+  .bk-terms strong.h { display: block; margin-bottom: 4px; font-size: 12px; letter-spacing: .5px; }
+  .bk-sig-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #334155; }
+  .bk-clear { border: none; background: #fee2e2; color: #dc2626; font-size: 12px; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+  .bk-sig { border: 1.5px solid #cbd5e1; border-radius: 14px; background: #f8fafc; overflow: hidden; position: relative; }
+  .bk-note { margin: 8px 0 0; font-size: 12px; color: #64748b; line-height: 1.5; }
+  .bk-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: rgba(255,255,255,.96); backdrop-filter: blur(10px); border-top: 1px solid #e2e8f0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .bk-bar-in { max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .bk-total small { display: block; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 1px; }
+  .bk-total b { font-size: 18px; font-weight: 900; color: #0369a1; white-space: nowrap; }
+  .bk-submit { flex: 1; padding: 16px 10px; border: none; border-radius: 14px; background: #0284c7; color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .5px; cursor: pointer; box-shadow: 0 6px 16px rgba(2,132,199,.3); touch-action: manipulation; }
+  .bk-submit:active { transform: scale(.98); }
+  .bk-submit:disabled { background: #94a3b8; box-shadow: none; }
+  .bk-ok { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; max-width: 480px; margin: 0 auto; }
+  .bk-ok-icon { width: 96px; height: 96px; border-radius: 50%; background: #10b981; color: #fff; font-size: 52px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(16,185,129,.35); }
+  .bk-ok h2 { margin: 0 0 12px; font-size: 28px; font-weight: 900; }
+  .bk-ok p { margin: 0 0 36px; color: #64748b; font-size: 16px; line-height: 1.6; }
+  .bk-ok button { width: 100%; padding: 18px; border: none; border-radius: 14px; background: #0284c7; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
+`;
+
 export default function BikeRentalForm() {
   const [formData, setFormData] = useState({
     room: "", guest_name: "", whatsapp: "", bike_type: "Standard Bicycle", duration_days: 1
@@ -77,14 +139,13 @@ export default function BikeRentalForm() {
 
   if (isSuccess) {
     return (
-      <div style={{ width: "100%", maxWidth: "100%", position: "relative", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc", padding: "16px", boxSizing: "border-box", margin: 0 }}>
-        <div style={{ background: "#fff", padding: "30px 20px", borderRadius: "16px", textAlign: "center", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
-          <div style={{ width: "60px", height: "60px", background: "#10b981", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", margin: "0 auto 20px" }}>✓</div>
-          <h2 style={{ color: "#0f172a", marginBottom: "10px", fontSize: "20px", marginTop: 0 }}>Order Submitted!</h2>
-          <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6", marginBottom: "24px" }}>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
-          <button 
-            onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }} 
-            style={{ width: "100%", padding: "14px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "15px" }}>
+      <div className="bk">
+        <style>{css}</style>
+        <div className="bk-ok">
+          <div className="bk-ok-icon">✓</div>
+          <h2>Order Submitted!</h2>
+          <p>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
+          <button onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }}>
             Rent Another Bike
           </button>
         </div>
@@ -93,101 +154,117 @@ export default function BikeRentalForm() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "100%", position: "relative", minHeight: "100vh", overflowX: "hidden", backgroundColor: "#f1f5f9", margin: 0, padding: 0, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "sans-serif" }}>
-      <div style={{ width: "100%", maxWidth: "500px", backgroundColor: "#fff", minHeight: "100vh", boxSizing: "border-box", boxShadow: "0 0 15px rgba(0,0,0,0.05)", overflowX: "hidden" }}>
-        
-        <div style={{ backgroundColor: "#0f172a", padding: "20px", color: "#fff", textAlign: "center", boxSizing: "border-box", width: "100%" }}>
-          <img src="/logo-gili.png" alt="Gili Amor" style={{ height: "45px", marginBottom: "10px", objectFit: "contain" }} />
-          <h1 style={{ fontSize: "18px", margin: "0 0 4px 0", letterSpacing: "1px" }}>GILIAMOR BIKE</h1>
-          <p style={{ fontSize: "12px", opacity: 0.8, margin: 0 }}>DIGITAL RENTAL & AGREEMENT FORM</p>
+    <div className="bk">
+      <style>{css}</style>
+      <div className="bk-wrap">
+        <div className="bk-hero">
+          <div className="bk-logo"><img src="/logo-gili.png" alt="Gili Amor" /></div>
+          <h1>GILIAMOR BIKE</h1>
+          <p>DIGITAL RENTAL & AGREEMENT FORM</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "20px", boxSizing: "border-box", width: "100%", overflowX: "hidden" }}>
-          
-          <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold", marginTop: 0 }}>GUEST INFORMATION</h3>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px", width: "100%", boxSizing: "border-box" }}>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", width: "100%", boxSizing: "border-box" }}>
-              ROOM NUMBER
-              <input required value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="e.g. 27" style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", width: "100%", boxSizing: "border-box", maxWidth: "100%" }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", width: "100%", boxSizing: "border-box" }}>
-              FULL NAME
-              <input required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Guest Name" style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", width: "100%", boxSizing: "border-box", maxWidth: "100%" }} />
-            </label>
-          </div>
-          
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "24px", width: "100%", boxSizing: "border-box" }}>
-            WHATSAPP NUMBER
-            <input required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="e.g. +628..." style={{ marginTop: "6px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", width: "100%", boxSizing: "border-box", maxWidth: "100%" }} />
-          </label>
-
-          <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold" }}>BICYCLE SELECTION</h3>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px", width: "100%", boxSizing: "border-box" }}>
-            <label style={{ display: "flex", alignItems: "center", padding: "14px 12px", border: formData.bike_type === "Standard Bicycle" ? "2px solid #3b82f6" : "1px solid #cbd5e1", borderRadius: "8px", background: formData.bike_type === "Standard Bicycle" ? "#eff6ff" : "#fff", cursor: "pointer", width: "100%", boxSizing: "border-box" }}>
-              <input type="radio" value="Standard Bicycle" checked={formData.bike_type === "Standard Bicycle"} onChange={e => setFormData({...formData, bike_type: e.target.value})} style={{ marginRight: "12px", transform: "scale(1.2)" }} />
-              <div><strong style={{ display: "block", fontSize: "14px" }}>Standard Bicycle</strong><span style={{ fontSize: "12px", color: "#64748b" }}>IDR 50,000 / Day</span></div>
-            </label>
-            <label style={{ display: "flex", alignItems: "center", padding: "14px 12px", border: formData.bike_type === "Electric Bike" ? "2px solid #3b82f6" : "1px solid #cbd5e1", borderRadius: "8px", background: formData.bike_type === "Electric Bike" ? "#eff6ff" : "#fff", cursor: "pointer", width: "100%", boxSizing: "border-box" }}>
-              <input type="radio" value="Electric Bike" checked={formData.bike_type === "Electric Bike"} onChange={e => setFormData({...formData, bike_type: e.target.value})} style={{ marginRight: "12px", transform: "scale(1.2)" }} />
-              <div><strong style={{ display: "block", fontSize: "14px" }}>Electric Bike (E-Bike)</strong><span style={{ fontSize: "12px", color: "#64748b" }}>IDR 200,000 / Day</span></div>
-            </label>
-          </div>
-
-          <label style={{ display: "flex", flexDirection: "column", fontSize: "12px", fontWeight: "bold", marginBottom: "16px", width: "100%", boxSizing: "border-box" }}>
-            RENTAL DURATION (DAYS)
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "8px" }}>
-              <button type="button" onClick={() => setFormData({...formData, duration_days: Math.max(1, formData.duration_days - 1)})} style={{ width: "42px", height: "42px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", fontSize: "20px", cursor: "pointer", fontWeight: "bold" }}>-</button>
-              <span style={{ fontSize: "18px", fontWeight: "bold", width: "30px", textAlign: "center" }}>{formData.duration_days}</span>
-              <button type="button" onClick={() => setFormData({...formData, duration_days: formData.duration_days + 1})} style={{ width: "42px", height: "42px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", fontSize: "20px", cursor: "pointer", fontWeight: "bold" }}>+</button>
+        <div className="bk-body">
+          <form onSubmit={handleSubmit}>
+            {/* DATA TAMU */}
+            <div className="bk-card">
+              <h3 className="bk-title">Guest Information</h3>
+              <div className="bk-row">
+                <label className="bk-field">
+                  Room *
+                  <input className="bk-input" required inputMode="numeric" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} placeholder="27" />
+                </label>
+                <label className="bk-field">
+                  Full Name *
+                  <input className="bk-input" required value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Guest Name" />
+                </label>
+              </div>
+              <label className="bk-field">
+                WhatsApp Number *
+                <input className="bk-input" required type="tel" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} placeholder="+62..." />
+              </label>
             </div>
-          </label>
 
-          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginBottom: "24px", textAlign: "center", width: "100%", boxSizing: "border-box" }}>
-            <span style={{ fontSize: "12px", color: "#64748b", display: "block" }}>Estimated Price:</span>
-            <strong style={{ fontSize: "20px", color: "#0f172a" }}>Rp {estimatedPrice.toLocaleString("id-ID")}</strong>
-          </div>
-
-          <h3 style={{ fontSize: "13px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px", color: "#334155", fontWeight: "bold" }}>DOCUMENTATION & AGREEMENT</h3>
-
-          <div style={{ marginBottom: "20px", width: "100%", boxSizing: "border-box" }}>
-            <span style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "8px" }}>PRE-RENTAL BIKE CONDITION PHOTO *</span>
-            <label style={{ display: "block", padding: "20px 10px", textAlign: "center", border: "2px dashed #cbd5e1", borderRadius: "8px", cursor: "pointer", background: "#f8fafc", width: "100%", boxSizing: "border-box" }}>
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" style={{ width: "100%", maxHeight: "220px", objectFit: "contain", borderRadius: "4px" }} />
-              ) : (
-                <div style={{ color: "#64748b", fontSize: "14px" }}>📷 Tap to Take Photo / Upload Condition</div>
-              )}
-              <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: "none" }} />
-            </label>
-          </div>
-
-          <div style={{ fontSize: "11px", color: "#475569", lineHeight: "1.5", marginBottom: "20px", padding: "12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", width: "100%", boxSizing: "border-box" }}>
-            <strong>TERMS OF LOSS AGREEMENT:</strong><br />
-            1. Guests are fully responsible for the bicycle during the rental period.<br />
-            2. Bike damages will be charged based on local workshop pricing.<br />
-            3. Lost unit replacement fee: <strong>IDR 2,700,000 (Standard)</strong> or <strong>IDR 10,000,000 (E-Bike)</strong>.
-          </div>
-
-          <div style={{ marginBottom: "24px", width: "100%", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
-              <span style={{ fontSize: "12px", fontWeight: "bold" }}>GUEST SIGNATURE *</span>
-              <button type="button" onClick={clearSignature} style={{ fontSize: "12px", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: "bold" }}>Clear</button>
+            {/* PILIH SEPEDA */}
+            <div className="bk-card">
+              <h3 className="bk-title">Bicycle Selection</h3>
+              <label className={"bk-opt" + (formData.bike_type === "Standard Bicycle" ? " on" : "")}>
+                <input type="radio" value="Standard Bicycle" checked={formData.bike_type === "Standard Bicycle"} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
+                <div className="bk-emoji">🚲</div>
+                <div className="bk-opt-text"><strong>Standard Bicycle</strong><span>IDR 50,000 / Day</span></div>
+                <div className="bk-dot" />
+              </label>
+              <label className={"bk-opt" + (formData.bike_type === "Electric Bike" ? " on" : "")}>
+                <input type="radio" value="Electric Bike" checked={formData.bike_type === "Electric Bike"} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
+                <div className="bk-emoji">⚡</div>
+                <div className="bk-opt-text"><strong>Electric Bike (E-Bike)</strong><span>IDR 200,000 / Day</span></div>
+                <div className="bk-dot" />
+              </label>
             </div>
-            
-            <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", background: "#f8fafc", width: "100%", boxSizing: "border-box", overflow: "hidden", position: "relative" }}>
-              {/* @ts-ignore */}
-              <SignatureCanvas ref={sigCanvas} penColor="black" clearOnResize={false} canvasProps={{ style: { width: "100%", height: "160px", touchAction: "none", maxWidth: "100%" } }} />
-            </div>
-            
-            <p style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>I have read, understand, and certify my compliance by signature.</p>
-          </div>
 
-          <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(16, 185, 129, 0.2)", boxSizing: "border-box", marginTop: "8px" }}>
-            {isSubmitting ? "Uploading Securely..." : "CONFIRM & AGREE RENTAL"}
-          </button>
-        </form>
+            {/* DURASI */}
+            <div className="bk-card">
+              <h3 className="bk-title">Rental Duration</h3>
+              <div className="bk-dur">
+                <button type="button" className="bk-dur-btn bk-dur-minus" onClick={() => setFormData({...formData, duration_days: Math.max(1, formData.duration_days - 1)})} aria-label="Kurangi hari">−</button>
+                <div className="bk-dur-num">
+                  <b>{formData.duration_days}</b>
+                  <small>{formData.duration_days > 1 ? "DAYS" : "DAY"}</small>
+                </div>
+                <button type="button" className="bk-dur-btn bk-dur-plus" onClick={() => setFormData({...formData, duration_days: formData.duration_days + 1})} aria-label="Tambah hari">+</button>
+              </div>
+            </div>
+
+            {/* FOTO + PERJANJIAN */}
+            <div className="bk-card">
+              <h3 className="bk-title">Documentation & Agreement</h3>
+
+              <div className="bk-field">
+                Pre-rental bike condition photo *
+                <label className="bk-photo" style={{ marginTop: 8 }}>
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview" />
+                  ) : (
+                    <>
+                      <span className="bk-photo-icon">📷</span>
+                      Tap to take photo / upload condition
+                    </>
+                  )}
+                  <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: "none" }} />
+                </label>
+              </div>
+
+              <div className="bk-terms" style={{ marginBottom: 16 }}>
+                <strong className="h">TERMS OF LOSS AGREEMENT</strong>
+                1. Guests are fully responsible for the bicycle during the rental period.<br />
+                2. Bike damages will be charged based on local workshop pricing.<br />
+                3. Lost unit replacement fee: <strong>IDR 2,700,000 (Standard)</strong> or <strong>IDR 10,000,000 (E-Bike)</strong>.
+              </div>
+
+              <div className="bk-sig-head">
+                <span>Guest Signature *</span>
+                <button type="button" className="bk-clear" onClick={clearSignature}>Clear</button>
+              </div>
+              <div className="bk-sig">
+                {/* @ts-ignore */}
+                <SignatureCanvas ref={sigCanvas} penColor="black" clearOnResize={false} canvasProps={{ style: { width: "100%", height: "160px", touchAction: "none", maxWidth: "100%" } }} />
+              </div>
+              <p className="bk-note">I have read, understand, and certify my compliance by signature.</p>
+            </div>
+
+            {/* BAR BAWAH: HARGA + SUBMIT */}
+            <div className="bk-bar">
+              <div className="bk-bar-in">
+                <div className="bk-total">
+                  <small>ESTIMATED PRICE</small>
+                  <b>Rp {estimatedPrice.toLocaleString("id-ID")}</b>
+                </div>
+                <button type="submit" className="bk-submit" disabled={isSubmitting}>
+                  {isSubmitting ? "UPLOADING..." : "CONFIRM & AGREE"}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
