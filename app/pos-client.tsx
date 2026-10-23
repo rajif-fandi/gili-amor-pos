@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase, processBikeRental } from "./actions";
+import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase, processBikeRental, submitLaundryOrder, processLaundryOrder } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -124,7 +124,7 @@ const navItems = [
   { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Buy", icon: "buy" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Bike Dashboard", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
-  { label: "Laundry Dashboard", icon: "laundry" as IconName, roles: ["Admin", "Kasir"] }, // <-- MENU LAUNDRY DITAMBAHKAN DI SINI
+  { label: "Laundry Dashboard", icon: "laundry" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Case / Follow-up", icon: "case" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Payment Database", icon: "database" as IconName, roles: ["Admin"] },
   { label: "Case Report", icon: "reports" as IconName, roles: ["Admin"] },
@@ -134,10 +134,14 @@ const navItems = [
   { label: "Staff", icon: "staff" as IconName, roles: ["Admin"] },
 ];
 
-// KOMPONEN LAUNDRY DASHBOARD LANGSUNG DI DALAM FILE INI
-function LaundryDashboardContent() {
+
+// =========================================================================================
+// NEW LAUNDRY DASHBOARD CONTENT - MENGIKUTI DESAIN REFERENSI UI TABEL
+// =========================================================================================
+function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, any>>({});
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -150,69 +154,197 @@ function LaundryDashboardContent() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
+
+  const handleEditChange = (id: string, field: string, value: any) => {
+    setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
+
+  const handleProcess = async (orderId: string) => {
+    const data = edits[orderId] || {};
+    if (!data.weight_kg || !data.total_price || !data.staff_name) {
+      return alert("PENTING: Mohon isi Berat (Kg), Total Harga, dan Pilih FO sebelum klik Done!");
+    }
+    
+    if (confirm("Proses pesanan laundry ini? Data akan tersimpan sebagai DONE.")) {
+      const payload = {
+        weight_kg: Number(data.weight_kg),
+        service_type: data.service_type || 'Normal',
+        total_price: Number(data.total_price),
+        payment_method: data.payment_method || 'Cash',
+        staff_name: data.staff_name
+      };
+      
+      const res = await processLaundryOrder(orderId, payload);
+      if (res && res.success) {
+        alert("Pesanan berhasil diproses!");
+        fetchOrders(); // Refresh table
+      } else {
+        alert("Gagal memproses pesanan: " + (res?.error || "Unknown Error"));
+      }
+    }
+  };
+
+  const exportExcel = () => {
+    const dataToExport = orders.map((r, index) => ({
+      No: index + 1, Kamar: r.room, Tamu: r.guest_name, WhatsApp: r.whatsapp,
+      TotalPcs: r.total_pcs, BeratKg: r.weight_kg || "-", Layanan: r.service_type || "-",
+      TotalHarga: r.total_price || "-", MetodeBayar: r.payment_method || "-",
+      Status: r.status, Staf: r.staff_name || "-", Tanggal: new Date(r.created_at).toLocaleString('id-ID')
+    }));
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LaundryData");
+    XLSX.writeFile(wb, `Laundry_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   return (
-    <section className="workspace-screen" style={{ minHeight: "100vh", backgroundColor: "#f8fafc", padding: "24px", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: "1000px", margin: "0 auto", width: "100%" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", background: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-          <div>
-            <h1 style={{ fontSize: "22px", color: "#0f172a", margin: "0 0 4px 0" }}>Laundry Dashboard</h1>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Kelola dan pantau pesanan laundry tamu secara real-time</p>
-          </div>
-          <button onClick={fetchOrders} style={{ padding: "10px 16px", background: "#0284c7", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            Refresh Data
+    <section style={{ width: "100%", minHeight: "100vh", backgroundColor: "#f8fafc", padding: "20px", boxSizing: "border-box", fontFamily: "sans-serif" }}>
+      
+      {/* HEADER ATAS */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: '#fff', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ margin: 0, color: '#15803d', fontSize: '24px', fontWeight: 'bold' }}>Giliamor Laundry List</h1>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+            ⚠ Kosongkan Data
+          </button>
+          <button onClick={exportExcel} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Icon name="download" size={16} /> Export Excel
+          </button>
+          <button style={{ padding: '8px 16px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+            Logout
           </button>
         </div>
+      </div>
 
-        {loading ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "#64748b", fontSize: "15px" }}>Memuat data pesanan...</div>
-        ) : orders.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", background: "#fff", borderRadius: "12px", color: "#64748b", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-            Belum ada pesanan laundry yang masuk saat ini.
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-            {orders.map((order) => (
-              <div key={order.id} style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: order.status === "DONE" ? "5px solid #10b981" : "5px solid #f59e0b", boxSizing: "border-box" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                  <div>
-                    <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>{order.order_no}</span>
-                    <h3 style={{ fontSize: "16px", color: "#0f172a", margin: "2px 0 0 0" }}>Room {order.room} - {order.guest_name}</h3>
-                  </div>
-                  <span style={{ padding: "4px 8px", borderRadius: "20px", fontSize: "11px", fontWeight: "bold", background: order.status === "DONE" ? "#d1fae5" : "#fef3c7", color: order.status === "DONE" ? "#065f46" : "#92400e" }}>
+      {/* FILTER BAR */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', alignItems: 'end', marginBottom: '20px', background: '#fff', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+          DARI TANGGAL:
+          <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+        </label>
+        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+          SAMPAI TANGGAL:
+          <input type="date" style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+        </label>
+        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
+          METODE BAYAR:
+          <select style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+            <option>All Payment</option><option>Cash</option><option>Card</option><option>Room Charge</option>
+          </select>
+        </label>
+        <button style={{ padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
+          Panggil Laporan
+        </button>
+      </div>
+
+      {/* TABEL DATA LAUNDRY */}
+      <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1300px' }}>
+          <thead>
+            <tr style={{ background: '#374151', color: '#fff', textAlign: 'left' }}>
+              <th style={{ padding: '16px 12px' }}>No</th>
+              <th style={{ padding: '16px 12px' }}>Kamar</th>
+              <th style={{ padding: '16px 12px' }}>Nama Tamu</th>
+              <th style={{ padding: '16px 12px' }}>WhatsApp / No HP</th>
+              <th style={{ padding: '16px 12px', width: '220px' }}>Rincian Pakaian</th>
+              <th style={{ padding: '16px 12px' }}>Total Pcs</th>
+              <th style={{ padding: '16px 12px' }}>Catatan</th>
+              <th style={{ padding: '16px 12px', width: '90px' }}>Berat (Kg)</th>
+              <th style={{ padding: '16px 12px' }}>Layanan</th>
+              <th style={{ padding: '16px 12px', width: '110px' }}>Total Harga</th>
+              <th style={{ padding: '16px 12px' }}>Status</th>
+              <th style={{ padding: '16px 12px' }}>Metode Bayar</th>
+              <th style={{ padding: '16px 12px' }}>Waktu WITA</th>
+              <th style={{ padding: '16px 12px', width: '110px' }}>Aksi Kasir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr>
+            ) : orders.length === 0 ? (
+              <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Belum ada data laundry.</td></tr>
+            ) : orders.map((order, index) => {
+              const isDone = order.status === "DONE";
+              return (
+                <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0', background: isDone ? '#f0fdf4' : '#fff' }}>
+                  <td style={{ padding: '16px 12px', color: '#64748b' }}>{index + 1}</td>
+                  <td style={{ padding: '16px 12px' }}>
+                    <span style={{ background: '#f59e0b', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{order.room}</span>
+                  </td>
+                  <td style={{ padding: '16px 12px', color: '#334155' }}>{order.guest_name}</td>
+                  <td style={{ padding: '16px 12px' }}>
+                    <a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {order.whatsapp} <small>(Chat WA ↗)</small>
+                    </a>
+                  </td>
+                  <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>
+                    {order.items_detail && typeof order.items_detail === 'object' 
+                      ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
+                      : '-'}
+                  </td>
+                  <td style={{ padding: '16px 12px' }}>
+                    <span style={{ background: '#2563eb', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>{order.total_pcs} Pcs</span>
+                  </td>
+                  <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
+                  
+                  {/* KOLOM INPUT & DROPDOWN AKTIF (Hanya jika belum DONE) */}
+                  <td style={{ padding: '16px 12px' }}>
+                    {isDone ? <strong>{order.weight_kg} Kg</strong> : (
+                      <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '60px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 12px' }}>
+                    {isDone ? <span>{order.service_type}</span> : (
+                      <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #16a34a', borderRadius: '4px', color: '#16a34a', fontWeight: 'bold' }}>
+                        <option value="Normal">Normal</option><option value="Express">Express</option>
+                      </select>
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 12px' }}>
+                    {isDone ? <strong>{formatIDR(order.total_price)}</strong> : (
+                      <input type="number" placeholder="Rp Total" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '80px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>
                     {order.status}
-                  </span>
-                </div>
-                <div style={{ fontSize: "13px", color: "#334155", marginBottom: "12px" }}>
-                  <strong>WhatsApp:</strong> {order.whatsapp}
-                </div>
-                <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px" }}>
-                  <strong style={{ display: "block", marginBottom: "6px", color: "#475569" }}>Rincian Pakaian ({order.total_pcs} Pcs):</strong>
-                  <ul style={{ margin: 0, paddingLeft: "16px", color: "#334155" }}>
-                    {order.items_detail && typeof order.items_detail === 'object' && Object.entries(order.items_detail).map(([item, qty]) => (
-                      <li key={item}>{item}: <strong>{String(qty)}x</strong></li>
-                    ))}
-                  </ul>
-                </div>
-                {order.notes && (
-                  <div style={{ fontSize: "12px", color: "#b45309", background: "#fef3c7", padding: "8px", borderRadius: "6px", marginBottom: "12px" }}>
-                    <strong>Catatan:</strong> {order.notes}
-                  </div>
-                )}
-                <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "right" }}>
-                  {new Date(order.created_at).toLocaleString("id-ID")}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                  </td>
+                  <td style={{ padding: '16px 12px' }}>
+                    {isDone ? <span>{order.payment_method}</span> : (
+                      <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                        <option value="Cash">Cash</option><option value="Card">Card</option><option value="Room Charge">Room Charge</option>
+                      </select>
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
+                    {new Date(order.created_at).toLocaleString('id-ID')}
+                  </td>
+                  
+                  {/* AKSI KASIR */}
+                  <td style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {isDone ? (
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#16a34a' }}>✓ Processed by {order.staff_name}</span>
+                    ) : (
+                      <>
+                        <button onClick={() => handleProcess(order.id)} style={{ padding: '6px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Done</button>
+                        <button style={{ padding: '6px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
+                        <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', fontSize: '11px' }}>
+                          <option value="">Pilih FO</option>
+                          {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
+                        </select>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
 }
+
 
 function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: any[], cases?: any[] }) {
   const [period, setPeriod] = useState("Daily");
@@ -1047,7 +1179,9 @@ export default function POSClientApp({
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
       {activePage === "Bike Dashboard" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
-      {activePage === "Laundry Dashboard" && <LaundryDashboardContent />}
+      
+      {/* LAUNDRY DASHBOARD DIRENDER DI SINI */}
+      {activePage === "Laundry Dashboard" && <LaundryDashboardContent staffList={initialStaff} />}
 
       {isPosPage && <section className="catalog">
         <header className="catalog-header">

@@ -439,3 +439,29 @@ export async function getLaundryOrders() {
     return { success: false, error: error.message };
   }
 }
+export async function processLaundryOrder(id: string, data: {
+  weight_kg: number;
+  service_type: string;
+  total_price: number;
+  payment_method: string;
+  staff_name: string;
+}) {
+  try {
+    const updated = await prisma.laundryOrder.update({
+      where: { id },
+      data: {
+        weight_kg: data.weight_kg,
+        service_type: data.service_type,
+        total_price: data.total_price,
+        payment_method: data.payment_method,
+        staff_name: data.staff_name,
+        status: "DONE"
+      }
+    });
+    revalidatePath('/');
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("ERROR PROCESS LAUNDRY:", error);
+    return { success: false, error: error.message };
+  }
+}
