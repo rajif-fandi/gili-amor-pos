@@ -6,7 +6,7 @@ import { submitBikeRental } from "../actions";
 
 const SignatureCanvas = dynamic(() => import("react-signature-canvas"), { ssr: false });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseUrl = "https://havaerpmltfzuupgwnzu.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
