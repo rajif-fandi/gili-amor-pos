@@ -12,6 +12,23 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PROJECT_URL = "https://havaerpmltfzuupgwnzu.supabase.co";
 
+const compressImage = (file: File): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error("Gagal memproses foto"))), "image/jpeg", 0.7);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Foto tidak bisa dibaca")); };
+    img.src = url;
+  });
+
 const css = `
   html, body { width: 100% !important; min-width: 0 !important; max-width: 100vw !important; margin: 0 !important; overflow-x: hidden; }
   .bk * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; min-width: 0; }
@@ -114,7 +131,8 @@ export default function BikeRentalForm() {
     setIsSubmitting(true);
     try {
       const photoName = `bike-${Date.now()}.jpg`;
-      const { error: photoErr } = await supabase.storage.from("gili-storage").upload(photoName, photo);
+            const photoBlob = await compressImage(photo);
+      const { error: photoErr } = await supabase.storage.from("gili-storage").upload(photoName, photoBlob, { contentType: "image/jpeg" });
       if (photoErr) throw new Error("Upload foto gagal: " + photoErr.message);
       const photoUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${photoName}`;
 
