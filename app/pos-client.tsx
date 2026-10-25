@@ -4,6 +4,7 @@ import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, add
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
+import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup } from "./config";
 
 type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
 
@@ -191,21 +192,19 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   };
 
   const handleProcess = async (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
     const data = edits[orderId] || {};
-    if (!data.weight_kg || !data.total_price || !data.staff_name) {
-      return alert("PENTING: Mohon isi Berat (Kg), Total Harga, dan Pilih FO sebelum klik Done!");
+    if (!order?.weight_kg || !order?.total_price) {
+      return alert("Pesanan ini belum ditimbang. Berat (kg) diisi oleh tim laundry di halaman laundry.");
     }
-    
-    if (confirm("Proses pesanan laundry ini ke laporan keuangan pusat?")) {
-      const payload = {
-        weight_kg: Number(data.weight_kg),
-        service_type: data.service_type || 'Normal',
-        total_price: Number(data.total_price),
-        payment_method: data.payment_method || 'Cash',
-        staff_name: data.staff_name
-      };
-      
-      const res = await processLaundryOrder(orderId, payload);
+    if (!data.staff_name) {
+      return alert("PENTING: Pilih FO sebelum klik Done!");
+    }
+
+    const method = data.payment_method || 'Cash';
+    const finalPrice = withFee(order.total_price, method);
+    if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nTotal bayar: ${formatIDR(finalPrice)} (${method})`)) {
+      const res = await processLaundryOrder(orderId, { payment_method: method, staff_name: data.staff_name });
       if (res && res.success) {
         alert("Pesanan berhasil diproses dan masuk ke Report!");
         fetchOrders(); 
@@ -249,7 +248,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
     const dataToExport = filteredOrders.map((r, index) => ({
       No: index + 1, Kamar: r.room, Tamu: r.guest_name, WhatsApp: r.whatsapp,
       TotalPcs: r.total_pcs, BeratKg: r.weight_kg || "-", Layanan: r.service_type || "-",
-      TotalHarga: r.total_price || "-", MetodeBayar: r.payment_method || "-",
+      TotalHarga: r.total_price ? withFee(r.total_price, r.payment_method) : "-", MetodeBayar: r.payment_method || "-",
       Status: r.status, Staf: r.staff_name || "-", Tanggal: new Date(r.created_at).toLocaleString('id-ID')
     }));
     const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -307,9 +306,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
             METODE BAYAR:
             <select value={filterPayment} onChange={e => setFilterPayment(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
               <option value="All Payment">All Payment</option>
-              <option value="Cash">Cash</option>
-              <option value="Card">Card</option>
-              <option value="Room Charge">Room Charge</option>
+              {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>
           <button onClick={() => { setStartDate(""); setEndDate(""); setFilterPayment("All Payment"); }} style={{ padding: '10px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
@@ -362,6 +359,32 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         : '-'}
                     </td>
                     <td style={{ padding: '16px 12px', fontWeight: 'bold', color: '#0f172a' }}>{order.total_pcs} Pcs</td>
+                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
+                    
+                    <td style={{ padding: '16px 12px' }}>
+                      {order.weight_kg ? <strong>{order.weight_kg} Kg</strong> : <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 'bold' }}>Belum ditimbang</span>}
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      <span>{order.service_type || '-'}</span>
+                    </td>
+                    <td style={{ padding: '16px 12px' }}>
+                      {order.total_price ? (
+                        <>
+                          <strong>{formatIDR(withFee(order.total_price, isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')))}</strong>
+                          {feeRate(isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')) > 0 && (
+                            <div style={{ fontSize: '10px', color: '#b45309' }}>+ biaya kartu {formatIDR(feeAmount(order.total_price, isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')))}</div>
+                          )}
+                        </>
+                      ) : <span style={{ color: '#94a3b8' }}>-</span>}
+                    </td>
+                    <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>{order.status}</td>
+                    <td style={{ padding: '16px 12px' }}>
+                      {isDone ? <span>{order.payment_method}</span> : (
+                        <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                          {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      )}
+                    </td>
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
                     
                     <td style={{ padding: '16px 12px' }}>
@@ -458,10 +481,11 @@ function DashboardAnalytics({ transactions = [], cases = [] }: { transactions?: 
   }, [filteredTx]);
 
   const paymentBarData = useMemo(() => {
-    const methods = { Cash: 0, Card: 0, "Bank Transfer": 0, "Room Charge": 0 };
+    const methods = { Cash: 0, Card: 0, "Bank Transfer": 0, "Room Charge": 0, Unpaid: 0 };
     filteredTx.forEach(t => {
-      if (methods.hasOwnProperty(t.method)) {
-        methods[t.method as keyof typeof methods] += (t.amount || 0);
+      const group = methodGroup(t.method);
+      if (methods.hasOwnProperty(group)) {
+        methods[group as keyof typeof methods] += (t.amount || 0);
       }
     });
     return Object.entries(methods).map(([name, value]) => ({ name, value })).filter(d => d.value > 0);
@@ -604,7 +628,7 @@ function ReportsDashboard({ transactions = [] }: { transactions?: any[] }) {
   const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
   
   const totalCash = displayRows.filter((t) => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
-  const totalCard = displayRows.filter((t) => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalCard = displayRows.filter((t) => isCard(t.method)).reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalRoomCharge = displayRows.filter((t) => t.method === "Room Charge").reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalBank = displayRows.filter((t) => t.method === "Bank Transfer").reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -754,7 +778,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
   const displayRows = transactions.filter((t: any) => t.date && t.date.includes(todayStr));
   
   const cashSales = displayRows.filter(t => t.method === "Cash").reduce((sum, t) => sum + (t.amount || 0), 0);
-  const cardSales = displayRows.filter(t => t.method === "Card").reduce((sum, t) => sum + (t.amount || 0), 0);
+  const cardSales = displayRows.filter(t => isCard(t.method)).reduce((sum, t) => sum + (t.amount || 0), 0);
   const expectedCash = openingCash + cashSales;
   const [actualCash, setActualCash] = useState(expectedCash.toString());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1038,6 +1062,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
 }
 
 function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[], setBikes: any, staffName: string }) {
+  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string }>>({});
   const completedBikes = bikes.filter((b: any) => b.status === "DONE");
   const grossIncome = completedBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
   const jatahBanana = grossIncome * 0.50;
@@ -1051,7 +1076,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     const total_price = Number(form.price.value);
     const payment_method = form.payment.value;
 
-    if (!confirm("Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.")) return;
+    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
 
     const res = await processBikeRental(id, { unit_no, total_price, payment_method, staff_name: staffName });
     if (res.success) {
@@ -1100,7 +1125,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                   </div>
                 </div>
                 {bike.status === "PENDING" ? (
-                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
+                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} onChange={(e) => { const f = e.currentTarget; setBikeInputs((prev) => ({ ...prev, [bike.id]: { price: Number(f.price.value), method: f.payment.value } })); }} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Nomor/Warna Unit
                       <input name="unit" required placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
@@ -1111,16 +1136,22 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Metode Bayar
-                      <select name="payment" required style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
-                        <option value="Cash">Cash</option><option value="Card/Qris">Card / QRIS</option><option value="Room Charge">Room Charge</option>
+                      <select name="payment" required defaultValue="Cash" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                        {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>
+                      Total Bayar
+                      <strong style={{ marginTop: '8px', fontSize: '16px', color: '#0f172a' }}>
+                        {formatIDR(withFee(bikeInputs[bike.id]?.price ?? (bike.bike_type?.includes("Electric") ? 200000 : 50000) * bike.duration_days, bikeInputs[bike.id]?.method ?? "Cash"))}
+                      </strong>
+                    </div>
                     <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '38px' }}>Proses (Selesai)</button>
                   </form>
                 ) : (
                   <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE (Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
-                    <strong style={{ color: '#065f46' }}>Total: {formatIDR(bike.total_price)} ({bike.payment_method})</strong>
+                    <strong style={{ color: '#065f46' }}>Total: {formatIDR(withFee(bike.total_price || 0, bike.payment_method))} ({bike.payment_method})</strong>
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: '20px', marginTop: '16px', flexWrap: 'wrap' }}>
@@ -1329,12 +1360,17 @@ export default function POSClientApp({
         <div style={{ flexShrink: 0, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
           <div style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '14px', color: '#64748b' }}>Grand Total</span><strong style={{ fontSize: '20px', color: '#0f172a' }}>{formatIDR(subtotal)}</strong>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>Grand Total</span><strong style={{ fontSize: '20px', color: '#0f172a' }}>{formatIDR(withFee(subtotal, payment))}</strong>
             </div>
+            {feeRate(payment) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#b45309', marginTop: '-8px', marginBottom: '14px' }}>
+                <span>Subtotal {formatIDR(subtotal)} + biaya kartu {payment}</span><strong>+ {formatIDR(feeAmount(subtotal, payment))}</strong>
+              </div>
+            )}
             <div style={{ marginBottom: '16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>Payment Method</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {[{ label: "Cash", icon: "cash" as IconName }, { label: "Card", icon: "card" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
+                {[{ label: "Unpaid", icon: "clock" as IconName }, { label: "Card (Debit/QRIS)", icon: "card" as IconName }, { label: "Card (2,5%)", icon: "card" as IconName }, { label: "Card (4%)", icon: "card" as IconName }, { label: "Cash", icon: "cash" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
                   <button key={method.label} onClick={() => setPayment(method.label)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', border: payment === method.label ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: payment === method.label ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
                     <Icon name={method.icon} size={16} /><span style={{ fontSize: '12px', fontWeight: 'bold', color: payment === method.label ? '#1e3a8a' : '#475569' }}>{method.label}</span>
                   </button>
@@ -1354,7 +1390,7 @@ export default function POSClientApp({
               else alert("Gagal menyimpan: " + result.error);
             }} 
             style={{ width: '100%', padding: '16px', background: cartItems.length === 0 ? '#cbd5e1' : '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: cartItems.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '15px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Save Transaction</span> <span>{formatIDR(subtotal)}</span>
+              <span>Save Transaction</span> <span>{formatIDR(withFee(subtotal, payment))}</span>
             </button>
           </div>
         </div>

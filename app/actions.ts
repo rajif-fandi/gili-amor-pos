@@ -2,6 +2,18 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from "./db";
+import { feeAmount, isUnpaid, laundryPrice } from "./config";
+
+async function ensureFeeItem() {
+  const code = "FEE-CARD";
+  const exists = await prisma.masterItem.findUnique({ where: { item_code: code } });
+  if (!exists) {
+    await prisma.masterItem.create({
+      data: { item_code: code, item_service: "Card Surcharge", default_rate: 0, category: "FEE", billing_type: "PER_UNIT", desk: "card", notes: "Auto-generated", active: true }
+    });
+  }
+  return code;
+}
 
 export async function saveTransaction(data: {
   guestName: string;
@@ -46,15 +58,21 @@ export async function saveTransaction(data: {
       }
     }
 
+    const baseTotal = Number(data.totalAmount);
+    const fee = feeAmount(baseTotal, data.paymentMethod);
+    const grandTotal = baseTotal + fee;
+    const unpaid = isUnpaid(data.paymentMethod);
+    const feeCode = fee > 0 ? await ensureFeeItem() : null;
+
     const newTransaction = await prisma.transaksi.create({
       data: {
         no_transaksi: noTransaksi,
         nama_tamu: data.guestName,
         payment_method: data.paymentMethod,
-        grand_total: Number(data.totalAmount),
-        amount_paid: Number(data.totalAmount),
-        balance: 0,
-        payment_status: "PAID",
+        grand_total: grandTotal,
+        amount_paid: unpaid ? 0 : grandTotal,
+        balance: unpaid ? grandTotal : 0,
+        payment_status: unpaid ? "UNPAID" : "PAID",
         room: data.room || "-", 
         staff_id: staffId,
         arrival_date: data.arrivalDate,       
@@ -63,14 +81,17 @@ export async function saveTransaction(data: {
         notes: data.paymentNotes,             
         
         details: {
-          create: data.items.map((item) => ({
-            item_code: String(item.item_code),
-            qty: item.qty,
-            duration: 1, 
-            rate: item.rate,
-            discount: 0,
-            total: item.total,
-          })),
+          create: [
+            ...data.items.map((item) => ({
+              item_code: String(item.item_code),
+              qty: item.qty,
+              duration: 1, 
+              rate: item.rate,
+              discount: 0,
+              total: item.total,
+            })),
+            ...(feeCode ? [{ item_code: feeCode, qty: 1, duration: 1, rate: fee, discount: 0, total: fee }] : []),
+          ],
         },
       },
     });
@@ -384,12 +405,17 @@ export async function processBikeRental(id: string, data: {
   staff_name: string;
 }) {
   try {
-    // 1. Update status sepeda menjadi DONE
+    const baseTotal = Number(data.total_price);
+    const fee = feeAmount(baseTotal, data.payment_method);
+    const grandTotal = baseTotal + fee;
+    const unpaid = isUnpaid(data.payment_method);
+
+    // 1. Update status sepeda menjadi DONE (total_price = harga sewa tanpa biaya kartu)
     const updated = await prisma.bikeRental.update({
       where: { id },
       data: {
         unit_no: data.unit_no,
-        total_price: data.total_price,
+        total_price: baseTotal,
         payment_method: data.payment_method,
         staff_name: data.staff_name,
         status: "DONE"
@@ -409,8 +435,9 @@ export async function processBikeRental(id: string, data: {
         }
       });
     }
+    const feeCode = fee > 0 ? await ensureFeeItem() : null;
 
-    // 3. Masukkan datanya ke tabel Transaksi utama
+    // 3. Masukkan datanya ke tabel Transaksi utama (sudah termasuk biaya kartu)
     const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
 
     await prisma.transaksi.create({
@@ -418,18 +445,21 @@ export async function processBikeRental(id: string, data: {
         no_transaksi: "TRX-BIKE-" + Date.now(),
         nama_tamu: updated.guest_name || "Bike Guest",
         payment_method: data.payment_method,
-        grand_total: Number(data.total_price),
-        amount_paid: Number(data.total_price),
-        balance: 0,
-        payment_status: "PAID",
+        grand_total: grandTotal,
+        amount_paid: unpaid ? 0 : grandTotal,
+        balance: unpaid ? grandTotal : 0,
+        payment_status: unpaid ? "UNPAID" : "PAID",
         room: updated.room || "-",
         staff_id: staff ? staff.staff_id : "STF-DEFAULT",
         notes: `Bike Rental - Unit ${data.unit_no} (${updated.duration_days} Days)`,
         details: {
-          create: [{
-            item_code: "E-BIKE", qty: 1, duration: updated.duration_days || 1, discount: 0,
-            rate: Number(data.total_price), total: Number(data.total_price),
-          }],
+          create: [
+            {
+              item_code: "E-BIKE", qty: 1, duration: updated.duration_days || 1, discount: 0,
+              rate: baseTotal, total: baseTotal,
+            },
+            ...(feeCode ? [{ item_code: feeCode, qty: 1, duration: 1, discount: 0, rate: fee, total: fee }] : []),
+          ],
         },
       },
     });
@@ -441,6 +471,7 @@ export async function processBikeRental(id: string, data: {
     return { success: false, error: error.message };
   }
 }
+
 export async function submitLaundryOrder(data: {
   room: string;
   guest_name: string;
@@ -480,21 +511,51 @@ export async function getLaundryOrders() {
     return { success: false, error: error.message };
   }
 }
+// Dipakai halaman /laundry/timbang: staf laundry mengisi kg, harga dihitung otomatis di server.
+export async function weighLaundryOrder(id: string, data: { weight_kg: number; service_type: string }) {
+  try {
+    const kg = Number(data.weight_kg);
+    if (!kg || kg <= 0) return { success: false, error: "Berat (kg) harus lebih dari 0." };
+    const service = data.service_type === "Express" ? "Express" : "Normal";
+
+    const existing = await prisma.laundryOrder.findUnique({ where: { id } });
+    if (!existing) return { success: false, error: "Pesanan tidak ditemukan." };
+    if (existing.status === "DONE") return { success: false, error: "Pesanan sudah selesai diproses, kg tidak bisa diubah." };
+
+    const updated = await prisma.laundryOrder.update({
+      where: { id },
+      data: { weight_kg: kg, service_type: service, total_price: laundryPrice(kg, service) }
+    });
+
+    revalidatePath('/');
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("ERROR WEIGH LAUNDRY:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Dipakai tombol Done di POS: kg, layanan, dan harga dasar diambil dari hasil timbang.
 export async function processLaundryOrder(id: string, data: {
-  weight_kg: number;
-  service_type: string;
-  total_price: number;
   payment_method: string;
   staff_name: string;
 }) {
   try {
-    // 1. Update status pesanan Laundry menjadi DONE
+    const existing = await prisma.laundryOrder.findUnique({ where: { id } });
+    if (!existing) return { success: false, error: "Pesanan tidak ditemukan." };
+    if (!existing.weight_kg || !existing.total_price) {
+      return { success: false, error: "Pesanan ini belum ditimbang. Isi kg dulu di halaman laundry." };
+    }
+
+    const baseTotal = Number(existing.total_price);
+    const fee = feeAmount(baseTotal, data.payment_method);
+    const grandTotal = baseTotal + fee;
+    const unpaid = isUnpaid(data.payment_method);
+
+    // 1. Update status pesanan Laundry menjadi DONE (total_price = harga tanpa biaya kartu)
     const updated = await prisma.laundryOrder.update({
       where: { id },
       data: {
-        weight_kg: data.weight_kg,
-        service_type: data.service_type,
-        total_price: data.total_price,
         payment_method: data.payment_method,
         staff_name: data.staff_name,
         status: "DONE"
@@ -521,6 +582,7 @@ export async function processLaundryOrder(id: string, data: {
         }
       });
     }
+    const feeCode = fee > 0 ? await ensureFeeItem() : null;
 
     // 3. Cari Staff ID kasir yang memproses
     const staff = await prisma.staff.findFirst({
@@ -528,28 +590,24 @@ export async function processLaundryOrder(id: string, data: {
     });
     const staffId = staff ? staff.staff_id : "STF-DEFAULT";
 
-    // 4. MASUKKAN KE DATABASE TRANSAKSI UTAMA AGAR MUNCUL DI REPORT!
+    // 4. MASUKKAN KE DATABASE TRANSAKSI UTAMA AGAR MUNCUL DI REPORT (sudah termasuk biaya kartu)
     await prisma.transaksi.create({
       data: {
-        no_transaksi: "TRX-LND-" + Date.now(), // Kode TRX khusus Laundry
+        no_transaksi: "TRX-LND-" + Date.now(),
         nama_tamu: updated.guest_name,
         payment_method: data.payment_method,
-        grand_total: data.total_price,
-        amount_paid: data.total_price,
-        balance: 0,
-        payment_status: "PAID",
+        grand_total: grandTotal,
+        amount_paid: unpaid ? 0 : grandTotal,
+        balance: unpaid ? grandTotal : 0,
+        payment_status: unpaid ? "UNPAID" : "PAID",
         room: updated.room || "-",
         staff_id: staffId,
-        notes: `Laundry ${data.weight_kg}Kg - ${data.service_type}`,
+        notes: `Laundry ${existing.weight_kg}Kg - ${existing.service_type || "Normal"}`,
         details: {
-          create: [{
-            item_code: itemCode,
-            qty: 1,
-            duration: 1, 
-            rate: data.total_price,
-            discount: 0,
-            total: data.total_price,
-          }],
+          create: [
+            { item_code: itemCode, qty: 1, duration: 1, rate: baseTotal, discount: 0, total: baseTotal },
+            ...(feeCode ? [{ item_code: feeCode, qty: 1, duration: 1, rate: fee, discount: 0, total: fee }] : []),
+          ],
         },
       },
     });
