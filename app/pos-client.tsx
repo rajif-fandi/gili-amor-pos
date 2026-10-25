@@ -385,33 +385,6 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         </select>
                       )}
                     </td>
-                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
-                    
-                    <td style={{ padding: '16px 12px' }}>
-                      {isDone ? <strong>{order.weight_kg} Kg</strong> : (
-                        <input type="number" step="0.1" placeholder="Kg" value={edits[order.id]?.weight_kg || ''} onChange={e => handleEditChange(order.id, 'weight_kg', e.target.value)} style={{ width: '50px', padding: '6px', border: '1px solid #16a34a', borderRadius: '4px' }} />
-                      )}
-                    </td>
-                    <td style={{ padding: '16px 12px' }}>
-                      {isDone ? <span>{order.service_type}</span> : (
-                        <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #16a34a', borderRadius: '4px', color: '#16a34a', fontWeight: 'bold' }}>
-                          <option value="Normal">Normal</option><option value="Express">Express</option>
-                        </select>
-                      )}
-                    </td>
-                    <td style={{ padding: '16px 12px' }}>
-                      {isDone ? <strong>{formatIDR(order.total_price)}</strong> : (
-                        <input type="number" placeholder="Rp" value={edits[order.id]?.total_price || ''} onChange={e => handleEditChange(order.id, 'total_price', e.target.value)} style={{ width: '70px', padding: '6px', border: '1px solid #f59e0b', background: '#fef3c7', borderRadius: '4px' }} />
-                      )}
-                    </td>
-                    <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>{order.status}</td>
-                    <td style={{ padding: '16px 12px' }}>
-                      {isDone ? <span>{order.payment_method}</span> : (
-                        <select value={edits[order.id]?.payment_method || 'Cash'} onChange={e => handleEditChange(order.id, 'payment_method', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                          <option value="Cash">Cash</option><option value="Card">Card</option><option value="Room Charge">Room Charge</option>
-                        </select>
-                      )}
-                    </td>
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
                       {new Date(order.created_at).toLocaleDateString('id-ID')}
                     </td>
@@ -1369,13 +1342,9 @@ export default function POSClientApp({
             )}
             <div style={{ marginBottom: '16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>Payment Method</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {[{ label: "Unpaid", icon: "clock" as IconName }, { label: "Card (Debit/QRIS)", icon: "card" as IconName }, { label: "Card (2,5%)", icon: "card" as IconName }, { label: "Card (4%)", icon: "card" as IconName }, { label: "Cash", icon: "cash" as IconName }, { label: "Room Charge", icon: "room" as IconName }, { label: "Bank Transfer", icon: "bank" as IconName }].map((method) => (
-                  <button key={method.label} onClick={() => setPayment(method.label)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', border: payment === method.label ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: payment === method.label ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
-                    <Icon name={method.icon} size={16} /><span style={{ fontSize: '12px', fontWeight: 'bold', color: payment === method.label ? '#1e3a8a' : '#475569' }}>{method.label}</span>
-                  </button>
-                ))}
-              </div>
+              <select value={payment} onChange={(e) => setPayment(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#fff', fontSize: '13px', fontWeight: 'bold', color: '#1e3a8a', cursor: 'pointer' }}>
+                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
             </div>
 
             <button disabled={cartItems.length === 0} onClick={async () => {
