@@ -808,8 +808,35 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
 
 function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  
+  // State untuk Filter Search & Tanggal
   const [searchQuery, setSearchQuery] = useState("");
-  const displayRows = transactions.filter(row => row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase()));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const displayRows = transactions.filter(row => {
+    // Filter Pencarian (Tamu atau Struk)
+    const matchSearch = row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter Tanggal
+    let matchDate = true;
+    if (startDate || endDate) {
+      // Menggunakan rawDate yang sudah dikirim dari backend
+      const rowDate = new Date(row.rawDate || row.date);
+      if (startDate) {
+        const sDate = new Date(startDate);
+        sDate.setHours(0, 0, 0, 0);
+        if (rowDate < sDate) matchDate = false;
+      }
+      if (endDate) {
+        const eDate = new Date(endDate);
+        eDate.setHours(23, 59, 59, 999);
+        if (rowDate > eDate) matchDate = false;
+      }
+    }
+    
+    return matchSearch && matchDate;
+  });
   
   const exportExcel = () => {
     const dataToExport = displayRows.map(r => ({
@@ -851,15 +878,31 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
       </header>
       <div className="workspace-content hide-on-print">
         <section className="report-table-panel">
-          <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <h2>All Transactions</h2>
-            <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari tamu atau struk..." type="search" value={searchQuery} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+            
+            {/* AREA FILTER BARU */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '4px 8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>DARI</span>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SAMPAI</span>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
+              </div>
+              <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari tamu atau struk..." type="search" value={searchQuery} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '220px' }} />
+              {(startDate || endDate || searchQuery) && (
+                <button onClick={() => { setStartDate(""); setEndDate(""); setSearchQuery(""); }} style={{ padding: '8px 12px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Reset</button>
+              )}
+            </div>
+
           </div>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Trx ID</th><th>Date</th><th>Guest Name</th><th>Method</th><th>Items Detail</th><th>Total</th><th>Action</th></tr></thead>
               <tbody>
-                {displayRows.map((row) => (
+                {displayRows.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada data transaksi yang ditemukan.</td></tr>
+                ) : displayRows.map((row) => (
                   <tr key={row.id}>
                     <td><strong>{row.id}</strong></td><td>{row.date}</td><td>{row.guest}</td>
                     <td><span className={`payment-badge ${row.method.toLowerCase()}`}>{row.method}</span></td>
@@ -930,8 +973,19 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  
+  // State Filter Search untuk Master Data
+  const [searchQuery, setSearchQuery] = useState("");
+  
   const defaultForm = { item_code: "", item_service: "", default_rate: "", category: "CHARGE", billing_type: "PER_UNIT", desk: "none", notes: "" };
   const [formData, setFormData] = useState(defaultForm);
+
+  // Logika Pencarian Master Data
+  const displayProducts = products.filter(row => 
+    row.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    row.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    row.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -943,7 +997,24 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Item</button></header>
+      <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div><h2>Master Data</h2></div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ position: 'relative' }}>
+            <input 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              placeholder="Cari item, kode, atau kategori..." 
+              type="search" 
+              value={searchQuery} 
+              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '280px', outline: 'none' }} 
+            />
+          </div>
+          <button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>
+            + Add New Item
+          </button>
+        </div>
+      </header>
+
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a' }}>
@@ -964,11 +1035,14 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
           </div>
         </div>
       )}
+
       <div className="workspace-content">
         <table className="data-table">
           <thead><tr><th>ITEM</th><th>CATEGORY</th><th>RATE</th><th>ACTION</th></tr></thead>
           <tbody>
-            {products.map((row: any) => (
+            {displayProducts.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada item yang ditemukan.</td></tr>
+            ) : displayProducts.map((row: any) => (
               <tr key={row.id}>
                 <td><strong>{row.id}</strong><br/>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td>
                 <td>
