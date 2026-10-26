@@ -9,7 +9,7 @@ interface LaundryOrder {
   room: string;
   guest_name: string;
   whatsapp: string;
-  items_detail: any; // Menggunakan 'any' sementara agar aman dari error tipe data JSON Prisma
+  items_detail: any; 
   total_pcs: number;
   notes?: string | null;
   weight_kg?: number | null;
@@ -39,6 +39,11 @@ const css = `
   .ld-stat { background: #fff; border-radius: 16px; padding: 14px 10px; text-align: center; box-shadow: 0 4px 16px rgba(15,23,42,.06); }
   .ld-stat b { display: block; font-size: 26px; font-weight: 900; line-height: 1; }
   .ld-stat small { display: block; margin-top: 6px; font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #64748b; }
+  
+  /* CSS Baru untuk Kotak Pencarian */
+  .ld-search { width: 100%; padding: 14px 16px; border-radius: 14px; border: 1.5px solid #e2e8f0; font-size: 14px; margin-bottom: 16px; outline: none; box-shadow: 0 4px 16px rgba(15,23,42,.04); transition: all 0.2s; }
+  .ld-search:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,.15); }
+
   .ld-tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
   .ld-tab { flex-shrink: 0; padding: 10px 18px; border: 1.5px solid #e2e8f0; border-radius: 999px; background: #fff; color: #475569; font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
   .ld-tab.on { background: #0284c7; border-color: #0284c7; color: #fff; }
@@ -63,10 +68,6 @@ const css = `
   .ld-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 800; color: #0369a1; letter-spacing: .5px; }
   .ld-input { display: block; width: 100%; padding: 13px; font-size: 20px; font-weight: 800; font-family: inherit; color: #0f172a; background: #fff; border: 1.5px solid #bae6fd; border-radius: 12px; outline: none; margin-bottom: 12px; }
   .ld-input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,.15); }
-  .ld-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  .ld-seg button { padding: 11px 6px; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; color: #475569; font-size: 14px; font-weight: 800; cursor: pointer; touch-action: manipulation; }
-  .ld-seg button small { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; color: #94a3b8; }
-  .ld-seg button.on { border-color: #0ea5e9; background: #fff; color: #0369a1; box-shadow: inset 0 0 0 1px #0ea5e9; }
   .ld-price { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 12px; padding: 11px 14px; margin-bottom: 12px; }
   .ld-price span { font-size: 12px; font-weight: 800; color: #0369a1; letter-spacing: .8px; }
   .ld-price b { font-size: 22px; font-weight: 900; color: #0369a1; }
@@ -82,10 +83,8 @@ const css = `
 function OrderCard({ order, onSaved }: { order: LaundryOrder; onSaved: () => void }) {
   const isDone = order.status === "DONE";
   const weighed = !!order.weight_kg;
-
   const [kg, setKg] = useState(order.weight_kg ? String(order.weight_kg) : "");
   const [saving, setSaving] = useState(false);
-
   const kgNum = Number(kg.replace(",", ".")) || 0;
 
   const save = async () => {
@@ -112,25 +111,13 @@ function OrderCard({ order, onSaved }: { order: LaundryOrder; onSaved: () => voi
         </div>
         <span className="ld-badge">{badge}</span>
       </div>
-
       <div className="ld-items">
-        <div className="ld-items-title">
-          RINCIAN PAKAIAN <span>{order.total_pcs} Pcs</span>
-        </div>
+        <div className="ld-items-title">RINCIAN PAKAIAN <span>{order.total_pcs} Pcs</span></div>
         {order.items_detail && typeof order.items_detail === "object" && Object.entries(order.items_detail).map(([item, qty]) => (
-          <div className="ld-item" key={item}>
-            <span>{item}</span>
-            <b>{String(qty)}x</b>
-          </div>
+          <div className="ld-item" key={item}><span>{item}</span><b>{String(qty)}x</b></div>
         ))}
       </div>
-
-      {order.notes && (
-        <div className="ld-notes">
-          <strong>Catatan:</strong> {order.notes}
-        </div>
-      )}
-
+      {order.notes && <div className="ld-notes"><strong>Catatan:</strong> {order.notes}</div>}
       {isDone ? (
         <div className="ld-summary">
           <span>✓ {order.weight_kg} Kg · {order.service_type}{order.payment_method ? " · " + order.payment_method : ""}</span>
@@ -140,12 +127,9 @@ function OrderCard({ order, onSaved }: { order: LaundryOrder; onSaved: () => voi
         <div className="ld-weigh">
           <label className="ld-label">BERAT (KG)</label>
           <input className="ld-input" inputMode="decimal" placeholder="contoh: 3.5" value={kg} onChange={(e) => setKg(e.target.value.replace(/[^0-9.,]/g, ""))} />
-          <button className="ld-save" onClick={save} disabled={saving}>
-            {saving ? "MENYIMPAN..." : weighed ? "UPDATE BERAT" : "SIMPAN BERAT"}
-          </button>
+          <button className="ld-save" onClick={save} disabled={saving}>{saving ? "MENYIMPAN..." : weighed ? "UPDATE BERAT" : "SIMPAN BERAT"}</button>
         </div>
       )}
-
       <div className="ld-date">{new Date(order.created_at).toLocaleString("id-ID")}</div>
     </div>
   );
@@ -155,26 +139,25 @@ export default function LaundryDashboard() {
   const [orders, setOrders] = useState<LaundryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL" | "TIMBANG" | "DITIMBANG" | "DONE">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchOrders = async () => {
     setLoading(true);
     const res = await getLaundryOrders();
-    if (res.success && res.data) {
-      setOrders(res.data as any);
-    } else {
-      alert("Gagal memuat data laundry: " + (res.error || "Unknown error"));
-    }
+    if (res.success && res.data) setOrders(res.data as any);
+    else alert("Gagal memuat data laundry: " + (res.error || "Unknown error"));
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
   const doneCount = orders.filter(o => o.status === "DONE").length;
   const needWeighCount = orders.filter(o => o.status !== "DONE" && !o.weight_kg).length;
 
   const visible = orders.filter(o => {
+    const matchSearch = o.guest_name.toLowerCase().includes(searchQuery.toLowerCase()) || o.room.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchSearch) return false;
+
     if (filter === "DONE") return o.status === "DONE";
     if (filter === "TIMBANG") return o.status !== "DONE" && !o.weight_kg;
     if (filter === "DITIMBANG") return o.status !== "DONE" && !!o.weight_kg;
@@ -184,19 +167,12 @@ export default function LaundryDashboard() {
   return (
     <div className="ld">
       <style>{css}</style>
-
       <div className="ld-hero">
         <div className="ld-hero-in">
-          <div>
-            <h1>Laundry Dashboard</h1>
-            <p>Pantau pesanan dan isi berat (kg). Layanan dan harga diatur kasir.</p>
-          </div>
-          <button className="ld-refresh" onClick={fetchOrders} disabled={loading}>
-            {loading ? "Memuat..." : "↻ Refresh"}
-          </button>
+          <div><h1>Laundry Dashboard</h1><p>Pantau pesanan dan isi berat (kg). Layanan dan harga diatur kasir.</p></div>
+          <button className="ld-refresh" onClick={fetchOrders} disabled={loading}>{loading ? "Memuat..." : "↻ Refresh"}</button>
         </div>
       </div>
-
       <div className="ld-wrap">
         <div className="ld-body">
           <div className="ld-stats">
@@ -204,6 +180,15 @@ export default function LaundryDashboard() {
             <div className="ld-stat"><b style={{ color: "#d97706" }}>{needWeighCount}</b><small>PERLU TIMBANG</small></div>
             <div className="ld-stat"><b style={{ color: "#059669" }}>{doneCount}</b><small>SELESAI</small></div>
           </div>
+          
+          {/* Fitur Kotak Pencarian Staf Laundry */}
+          <input 
+            type="search" 
+            className="ld-search" 
+            placeholder="🔍 Cari nama tamu atau nomor kamar..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+          />
 
           <div className="ld-tabs">
             <button className={"ld-tab" + (filter === "ALL" ? " on" : "")} onClick={() => setFilter("ALL")}>Semua</button>
@@ -212,17 +197,11 @@ export default function LaundryDashboard() {
             <button className={"ld-tab" + (filter === "DONE" ? " on" : "")} onClick={() => setFilter("DONE")}>Selesai</button>
           </div>
 
-          {loading && orders.length === 0 ? (
-            <div className="ld-empty">Memuat data pesanan...</div>
-          ) : orders.length === 0 ? (
-            <div className="ld-empty">Belum ada pesanan laundry yang masuk saat ini.</div>
-          ) : visible.length === 0 ? (
-            <div className="ld-empty">Tidak ada pesanan di kategori ini.</div>
-          ) : (
+          {loading && orders.length === 0 ? <div className="ld-empty">Memuat data pesanan...</div> : 
+           orders.length === 0 ? <div className="ld-empty">Belum ada pesanan laundry yang masuk saat ini.</div> : 
+           visible.length === 0 ? <div className="ld-empty">Tidak ada pesanan yang cocok dengan pencarian Anda.</div> : (
             <div className="ld-grid">
-              {visible.map((order) => (
-                <OrderCard key={order.id} order={order} onSaved={fetchOrders} />
-              ))}
+              {visible.map((order) => <OrderCard key={order.id} order={order} onSaved={fetchOrders} />)}
             </div>
           )}
         </div>

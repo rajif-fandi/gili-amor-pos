@@ -142,14 +142,24 @@ const navItems = [
 function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, any>>({});
   
-  // State untuk Filter
+  // -- AUTO SAVE LOCAL STORAGE LAUNDRY --
+  const [edits, setEdits] = useState<Record<string, any>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gili_laundry_drafts");
+      if (saved) return JSON.parse(saved);
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem("gili_laundry_drafts", JSON.stringify(edits));
+  }, [edits]);
+  // -------------------------------------
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [filterPayment, setFilterPayment] = useState("All Payment");
-  
-  // State untuk Edit Modal
   const [editModal, setEditModal] = useState<any>(null);
 
   const fetchOrders = async () => {
@@ -163,12 +173,11 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
     setLoading(false);
   };
 
-  // Ambil data baru diam-diam tiap 20 detik, jadi pesanan baru muncul tanpa refresh manual
   const silentRefresh = async () => {
     try {
       const res = await fetch('/api/laundry-orders').then(r => r.json()).catch(() => null);
       if (res && res.success) setOrders(res.data || []);
-    } catch (e) { /* diamkan */ }
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -185,15 +194,12 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
     else alert("Gagal menghapus: " + (res?.error || "Unknown error"));
   };
 
-  // Logika Filter (Otomatis menyaring data berdasarkan tanggal & metode bayar)
   const filteredOrders = orders.filter((o) => {
     const oDate = new Date(o.created_at);
-    // Filter Metode Bayar (Jika belum DONE, default pembayarannya dianggap Cash atau sesuai input FO)
     if (filterPayment !== "All Payment") {
       const method = o.payment_method || "Cash";
       if (method !== filterPayment) return false;
     }
-    // Filter Tanggal
     if (startDate) {
       const sDate = new Date(startDate);
       sDate.setHours(0, 0, 0, 0);
@@ -214,55 +220,39 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const handleProcess = async (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
     const data = edits[orderId] || {};
-    if (!order?.weight_kg) {
-      return alert("Pesanan ini belum ditimbang. Berat (kg) diisi oleh tim laundry di halaman laundry.");
-    }
-    if (!data.staff_name) {
-      return alert("PENTING: Pilih FO sebelum klik Done!");
-    }
+    if (!order?.weight_kg) return alert("Pesanan ini belum ditimbang. Berat (kg) diisi oleh tim laundry di halaman laundry.");
+    if (!data.staff_name) return alert("PENTING: Pilih FO sebelum klik Done!");
 
     const service = data.service_type || 'Normal';
     const method = data.payment_method || 'Cash';
     const finalPrice = withFee(laundryPrice(order.weight_kg, service), method);
+    
     if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nLayanan: ${service} (${order.weight_kg} Kg)\nTotal bayar: ${formatIDR(finalPrice)} (${method})`)) {
       const res = await processLaundryOrder(orderId, { service_type: service, payment_method: method, staff_name: data.staff_name });
       if (res && res.success) {
         alert("Pesanan berhasil diproses dan masuk ke Report!");
+        // Hapus dari draft karena sudah selesai
+        setEdits(prev => { const next = {...prev}; delete next[orderId]; return next; });
         fetchOrders(); 
-      } else {
-        alert("Gagal memproses pesanan: " + (res?.error || "Unknown Error"));
-      }
+      } else alert("Gagal memproses pesanan: " + (res?.error || "Unknown Error"));
     }
   };
 
-  // Fungsi Kosongkan Data
   const handleClearData = async () => {
     if (confirm("⚠️ PERINGATAN BAPAK MANAJER: Anda yakin ingin menghapus SEMUA data laundry? Aksi ini tidak dapat dibatalkan!")) {
-      // Panggil fungsi dari backend yang baru saja kita buat
       const res = await (await import('./actions')).clearAllLaundryOrders();
-      if (res.success) {
-        alert("Semua data laundry berhasil dikosongkan.");
-        fetchOrders();
-      } else {
-        alert("Gagal menghapus data.");
-      }
+      if (res.success) { alert("Semua data laundry berhasil dikosongkan."); fetchOrders(); } 
+      else alert("Gagal menghapus data.");
     }
   };
 
-  // Fungsi Simpan Edit Info Tamu
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await (await import('./actions')).updateLaundryGuestInfo(editModal.id, {
-      room: editModal.room,
-      guest_name: editModal.guest_name,
-      whatsapp: editModal.whatsapp,
-      notes: editModal.notes
+      room: editModal.room, guest_name: editModal.guest_name, whatsapp: editModal.whatsapp, notes: editModal.notes
     });
-    if (res.success) {
-      alert("Info tamu berhasil diubah!");
-      setEditModal(null);
-      fetchOrders();
-    } else alert("Gagal mengubah data.");
+    if (res.success) { alert("Info tamu berhasil diubah!"); setEditModal(null); fetchOrders(); } 
+    else alert("Gagal mengubah data.");
   };
 
   const exportExcel = () => {
@@ -280,7 +270,6 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
 
   return (
     <section className="workspace-screen">
-      {/* MODAL EDIT TAMU */}
       {editModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', color: '#0f172a' }}>
@@ -302,94 +291,43 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
       <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, color: '#15803d', fontSize: '24px', fontWeight: 'bold' }}>Giliamor Laundry List</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={handleClearData} style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-            ⚠ Kosongkan Data
-          </button>
-          <button onClick={exportExcel} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Icon name="download" size={16} /> Export Excel
-          </button>
+          <button onClick={handleClearData} style={{ padding: '8px 16px', background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>⚠ Kosongkan Data</button>
+          <button onClick={exportExcel} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="download" size={16} /> Export Excel</button>
         </div>
       </header>
 
       <div className="workspace-content" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        
-        {/* FILTER BAR YANG SEKARANG SUDAH AKTIF */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end', background: '#fff', padding: '16px 24px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-            DARI TANGGAL:
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-          </label>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-            SAMPAI TANGGAL:
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-          </label>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>
-            METODE BAYAR:
-            <select value={filterPayment} onChange={e => setFilterPayment(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-              <option value="All Payment">All Payment</option>
-              {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
-          <button onClick={() => { setStartDate(""); setEndDate(""); setFilterPayment("All Payment"); }} style={{ padding: '10px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>
-            Reset Filter
-          </button>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>DARI TANGGAL:<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} /></label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>SAMPAI TANGGAL:<input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} /></label>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'flex', flexDirection: 'column' }}>METODE BAYAR:<select value={filterPayment} onChange={e => setFilterPayment(e.target.value)} style={{ marginTop: '4px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}><option value="All Payment">All Payment</option>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></label>
+          <button onClick={() => { setStartDate(""); setEndDate(""); setFilterPayment("All Payment"); }} style={{ padding: '10px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', height: '36px' }}>Reset Filter</button>
         </div>
 
         <div style={{ width: '100%', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#374151', color: '#ffffff', textAlign: 'left' }}>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>No</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Kamar</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Nama Tamu</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>WhatsApp</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Rincian Pakaian</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Pcs</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Catatan</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Berat (Kg)</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Layanan</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Harga</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Status</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Bayar</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Waktu</th>
-                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Aksi</th>
+                <th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>No</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Kamar</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Nama Tamu</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>WhatsApp</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Rincian Pakaian</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Pcs</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Catatan</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Berat (Kg)</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Layanan</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Total Harga</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Status</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Bayar</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Waktu</th><th style={{ padding: '16px 12px', borderBottom: '1px solid #475569' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Tidak ada data yang sesuai filter.</td></tr>
-              ) : filteredOrders.map((order, index) => {
+              {loading ? <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Memuat data...</td></tr> : filteredOrders.length === 0 ? <tr><td colSpan={14} style={{ textAlign: 'center', padding: '30px' }}>Tidak ada data yang sesuai filter.</td></tr> : filteredOrders.map((order, index) => {
                 const isDone = order.status === "DONE";
                 return (
                   <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0', background: isDone ? '#f0fdf4' : '#fff' }}>
                     <td style={{ padding: '16px 12px', color: '#64748b' }}>{index + 1}</td>
-                    <td style={{ padding: '16px 12px' }}>
-                      <span style={{ background: '#f59e0b', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{order.room}</span>
-                    </td>
+                    <td style={{ padding: '16px 12px' }}><span style={{ background: '#f59e0b', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{order.room}</span></td>
                     <td style={{ padding: '16px 12px', color: '#334155' }}>{order.guest_name}</td>
-                    <td style={{ padding: '16px 12px' }}>
-                      <a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {order.whatsapp}
-                      </a>
-                    </td>
-                    <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>
-                      {order.items_detail && typeof order.items_detail === 'object' 
-                        ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ')
-                        : '-'}
-                    </td>
+                    <td style={{ padding: '16px 12px' }}><a href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 'bold' }}>{order.whatsapp}</a></td>
+                    <td style={{ padding: '16px 12px', fontSize: '11px', color: '#475569', lineHeight: '1.4' }}>{order.items_detail && typeof order.items_detail === 'object' ? Object.entries(order.items_detail).map(([k,v]) => `${k}: ${v}`).join(', ') : '-'}</td>
                     <td style={{ padding: '16px 12px', fontWeight: 'bold', color: '#0f172a' }}>{order.total_pcs} Pcs</td>
                     <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{order.notes || '-'}</td>
-                    
-                    <td style={{ padding: '16px 12px' }}>
-                      {order.weight_kg ? <strong>{order.weight_kg} Kg</strong> : <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 'bold' }}>Belum ditimbang</span>}
-                    </td>
+                    <td style={{ padding: '16px 12px' }}>{order.weight_kg ? <strong>{order.weight_kg} Kg</strong> : <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 'bold' }}>Belum ditimbang</span>}</td>
                     <td style={{ padding: '16px 12px' }}>
                       {isDone ? <span>{order.service_type || '-'}</span> : (
                         <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                          <option value="Normal">Normal</option>
-                          <option value="Express">Express</option>
+                          <option value="Normal">Normal</option><option value="Express">Express</option>
                         </select>
                       )}
                     </td>
@@ -399,12 +337,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         const base = isDone ? (order.total_price || 0) : (order.weight_kg ? laundryPrice(order.weight_kg, edits[order.id]?.service_type || 'Normal') : 0);
                         if (!base) return <span style={{ color: '#94a3b8' }}>-</span>;
                         return (
-                          <>
-                            <strong>{formatIDR(withFee(base, method))}</strong>
-                            {feeRate(method) > 0 && (
-                              <div style={{ fontSize: '10px', color: '#b45309' }}>+ biaya kartu {formatIDR(feeAmount(base, method))}</div>
-                            )}
-                          </>
+                          <><strong>{formatIDR(withFee(base, method))}</strong>{feeRate(method) > 0 && (<div style={{ fontSize: '10px', color: '#b45309' }}>+ biaya {formatIDR(feeAmount(base, method))}</div>)}</>
                         );
                       })()}
                     </td>
@@ -416,22 +349,15 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                         </select>
                       )}
                     </td>
-                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>
-                      {new Date(order.created_at).toLocaleDateString('id-ID')}
-                    </td>
+                    <td style={{ padding: '16px 12px', color: '#475569', fontSize: '11px' }}>{new Date(order.created_at).toLocaleDateString('id-ID')}</td>
                     <td style={{ padding: '16px 12px', verticalAlign: 'middle', minWidth: '120px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {isDone ? (
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>✓ {order.staff_name}</span>
-                      ) : (
+                      {isDone ? (<span style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>✓ {order.staff_name}</span>) : (
                         <>
                           <button onClick={() => handleProcess(order.id)} style={{ padding: '4px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Done</button>
-                          {/* TOMBOL EDIT BARU! */}
                           <button onClick={() => setEditModal(order)} style={{ padding: '4px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Edit</button>
-                          
                           <select value={edits[order.id]?.staff_name || ''} onChange={e => handleEditChange(order.id, 'staff_name', e.target.value)} style={{ padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '10px' }}>
-                            <option value="">FO</option>
-                            {staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
+                            <option value="">FO</option>{staffList.map(s => <option key={s.dbId} value={s.name}>{s.name}</option>)}
                           </select>
                         </>
                       )}
@@ -1117,7 +1043,24 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
 }
 
 function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[], setBikes: any, staffName: string }) {
-  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string }>>({});
+  // -- AUTO SAVE LOCAL STORAGE BIKE --
+  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string }>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gili_bike_drafts");
+      if (saved) return JSON.parse(saved);
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem("gili_bike_drafts", JSON.stringify(bikeInputs));
+  }, [bikeInputs]);
+
+  const handleBikeChange = (id: string, field: string, val: any) => {
+    setBikeInputs(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
+  };
+  // ---------------------------------
+
   const [editBike, setEditBike] = useState<any>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -1127,7 +1070,6 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
   const jatahHotel = grossIncome * 0.25;
   const jatahPakJoe = grossIncome - jatahBanana - jatahHotel;
 
-  // Sepeda siap lagi = waktu sewa dimulai + durasi (24 jam per hari)
   const dueAt = (b: any) => new Date(new Date(b.created_at).getTime() + (b.duration_days || 1) * 24 * 60 * 60 * 1000);
   const fmtTime = (d: Date) => d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   const replaceBike = (updated: any) => setBikes((prev: any[]) => prev.map((b: any) => b.id === updated.id ? updated : b));
@@ -1146,6 +1088,8 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     if (res.success) {
       replaceBike(res.data);
       alert("Pesanan sukses diproses ke dalam laporan!");
+      // Hapus dari draft karena sudah selesai
+      setBikeInputs(prev => { const next = {...prev}; delete next[id]; return next; });
     } else alert("Gagal memproses: " + res.error);
   };
 
@@ -1167,19 +1111,13 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     e.preventDefault();
     setSavingEdit(true);
     const res = await updateBikeRental(editBike.id, {
-      guest_name: editBike.guest_name,
-      room: editBike.room,
-      whatsapp: editBike.whatsapp,
-      bike_type: editBike.bike_type,
-      duration_days: Number(editBike.duration_days),
-      unit_no: editBike.unit_no || "",
-      vendor: editBike.vendor || "",
+      guest_name: editBike.guest_name, room: editBike.room, whatsapp: editBike.whatsapp,
+      bike_type: editBike.bike_type, duration_days: Number(editBike.duration_days),
+      unit_no: editBike.unit_no || "", vendor: editBike.vendor || "",
     });
     setSavingEdit(false);
-    if (res.success) {
-      replaceBike(res.data);
-      setEditBike(null);
-    } else alert("Gagal menyimpan: " + res.error);
+    if (res.success) { replaceBike(res.data); setEditBike(null); } 
+    else alert("Gagal menyimpan: " + res.error);
   };
 
   const fieldStyle = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', background: '#fff' } as const;
@@ -1203,8 +1141,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Jenis Sepeda
                   <select value={editBike.bike_type} onChange={(e) => setEditBike({ ...editBike, bike_type: e.target.value })} style={fieldStyle}>
-                    <option value="Standard Bicycle">Standard Bicycle</option>
-                    <option value="Electric Bike">Electric Bike</option>
+                    <option value="Standard Bicycle">Standard Bicycle</option><option value="Electric Bike">Electric Bike</option>
                   </select>
                 </label>
                 <label style={{ width: '120px', fontSize: '12px', fontWeight: 'bold' }}>Durasi (Hari)<input required type="number" min={1} value={editBike.duration_days} onChange={(e) => setEditBike({ ...editBike, duration_days: e.target.value })} style={fieldStyle} /></label>
@@ -1213,16 +1150,11 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                 <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Nomor/Warna Unit<input value={editBike.unit_no || ""} onChange={(e) => setEditBike({ ...editBike, unit_no: e.target.value })} style={fieldStyle} /></label>
                 <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
                   <select value={editBike.vendor || ""} onChange={(e) => setEditBike({ ...editBike, vendor: e.target.value })} style={fieldStyle}>
-                    <option value="">- Pilih vendor -</option>
-                    {BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                    <option value="">- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </label>
               </div>
-              {editBike.status === "DONE" && (
-                <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>
-                  Pesanan ini sudah DONE. Mengubah durasi tidak mengubah transaksi yang sudah tercatat. Tambahan hari perpanjangan perlu dicatat sebagai transaksi baru di kasir.
-                </p>
-              )}
+              {editBike.status === "DONE" && <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>Pesanan ini sudah DONE. Mengubah durasi tidak mengubah transaksi yang sudah tercatat.</p>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setEditBike(null)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Batal</button>
                 <button type="submit" disabled={savingEdit} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{savingEdit ? "Menyimpan..." : "Simpan"}</button>
@@ -1234,54 +1166,29 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
 
       <div className="workspace-content">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
-            <span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{formatIDR(grossIncome)}</div>
-          </div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-            <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>BERSIH MR. BANANA (50%)</span>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahBanana)}</div>
-          </div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL (25%)</span>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotel)}</div>
-          </div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>BERSIH PAK JOE (25%)</span>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div>
-          </div>
+          <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span><div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{formatIDR(grossIncome)}</div></div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>BERSIH MR. BANANA (50%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahBanana)}</div></div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL (25%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotel)}</div></div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>BERSIH PAK JOE (25%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div></div>
         </div>
         <section className="report-table-panel">
           <div className="panel-heading"><h2>Daftar Pesanan Sepeda Tamu</h2></div>
           <div style={{ padding: '20px' }}>
-            {bikes.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#64748b' }}>Belum ada data penyewaan sepeda.</p>
-            ) : bikes.map((bike: any) => {
+            {bikes.length === 0 ? <p style={{ textAlign: 'center', color: '#64748b' }}>Belum ada data penyewaan sepeda.</p> : bikes.map((bike: any) => {
               const returned = !!bike.returned_at;
               const due = dueAt(bike);
               const overdue = !returned && Date.now() > due.getTime();
               const defaultPrice = bikeDailyRate(bike.bike_type) * (bike.duration_days || 1);
+              
               return (
               <div key={bike.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', gap: '12px', flexWrap: 'wrap' }}>
-                  <div>
-                    <strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong>
-                    <span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <strong style={{ display: 'block', color: bike.bike_type?.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong>
-                    <span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span>
-                  </div>
+                  <div><strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong><span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span></div>
+                  <div style={{ textAlign: 'right' }}><strong style={{ display: 'block', color: bike.bike_type?.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong><span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span></div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
-                  {returned ? (
-                    <span style={{ background: '#d1fae5', color: '#065f46', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>SELESAI · dikembalikan {fmtTime(new Date(bike.returned_at))}</span>
-                  ) : overdue ? (
-                    <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · LEWAT WAKTU (seharusnya siap {fmtTime(due)})</span>
-                  ) : (
-                    <span style={{ background: '#fef3c7', color: '#92400e', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · siap {fmtTime(due)}</span>
-                  )}
+                  {returned ? (<span style={{ background: '#d1fae5', color: '#065f46', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>SELESAI · dikembalikan {fmtTime(new Date(bike.returned_at))}</span>) : overdue ? (<span style={{ background: '#fee2e2', color: '#b91c1c', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · LEWAT WAKTU (seharusnya siap {fmtTime(due)})</span>) : (<span style={{ background: '#fef3c7', color: '#92400e', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · siap {fmtTime(due)}</span>)}
                   <span style={{ background: '#f1f5f9', color: '#334155', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>Vendor: {bike.vendor || '-'}</span>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <button onClick={() => handleReturn(bike)} style={smallBtn(returned ? '#64748b' : '#0ea5e9')}>{returned ? 'Buka Lagi (Masih Disewa)' : 'Sepeda Kembali'}</button>
@@ -1291,33 +1198,25 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                 </div>
 
                 {bike.status === "PENDING" ? (
-                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} onChange={(e) => { const f = e.currentTarget; setBikeInputs((prev) => ({ ...prev, [bike.id]: { price: Number(f.price.value), method: f.payment.value } })); }} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
-                      Nomor/Warna Unit
-                      <input name="unit" required defaultValue={bike.unit_no || ""} placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Nomor/Warna Unit
+                      <input name="unit" required value={bikeInputs[bike.id]?.unit_no ?? (bike.unit_no || "")} onChange={(e) => handleBikeChange(bike.id, 'unit_no', e.target.value)} placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
-                      Vendor
-                      <select name="vendor" required defaultValue={bike.vendor || ""} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
-                        <option value="" disabled>- Pilih vendor -</option>
-                        {BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Vendor
+                      <select name="vendor" required value={bikeInputs[bike.id]?.vendor ?? (bike.vendor || "")} onChange={(e) => handleBikeChange(bike.id, 'vendor', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                        <option value="" disabled>- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
                       </select>
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
-                      Harga Final (Rp)
-                      <input name="price" type="number" required defaultValue={defaultPrice} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Harga Final (Rp)
+                      <input name="price" type="number" required value={bikeInputs[bike.id]?.price ?? defaultPrice} onChange={(e) => handleBikeChange(bike.id, 'price', Number(e.target.value))} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
-                      Metode Bayar
-                      <select name="payment" required defaultValue="Cash" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Metode Bayar
+                      <select name="payment" required value={bikeInputs[bike.id]?.method ?? "Cash"} onChange={(e) => handleBikeChange(bike.id, 'method', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
                         {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>
-                      Total Bayar
-                      <strong style={{ marginTop: '8px', fontSize: '16px', color: '#0f172a' }}>
-                        {formatIDR(withFee(bikeInputs[bike.id]?.price ?? defaultPrice, bikeInputs[bike.id]?.method ?? "Cash"))}
-                      </strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>Total Bayar
+                      <strong style={{ marginTop: '8px', fontSize: '16px', color: '#0f172a' }}>{formatIDR(withFee(bikeInputs[bike.id]?.price ?? defaultPrice, bikeInputs[bike.id]?.method ?? "Cash"))}</strong>
                     </div>
                     <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '38px' }}>Proses (Selesai)</button>
                   </form>
@@ -1327,27 +1226,11 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <strong style={{ color: '#065f46' }}>Total: {formatIDR(withFee(bike.total_price || 0, bike.payment_method))} ({bike.payment_method})</strong>
                   </div>
                 )}
+                
+                {/* Bagian foto dan tanda tangan (tidak ada perubahan) */}
                 <div style={{ display: 'flex', gap: '20px', marginTop: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '220px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>FOTO KONDISI SEPEDA:</span>
-                    {bike.photo_url ? (
-                      <a href={bike.photo_url} target="_blank" rel="noopener noreferrer">
-                        <img src={bike.photo_url} alt="Kondisi Sepeda" style={{ width: '100%', height: '140px', borderRadius: '6px', display: 'block', marginTop: '4px', border: '1px solid #cbd5e1', objectFit: 'cover', cursor: 'pointer' }} />
-                      </a>
-                    ) : (
-                      <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada foto</p>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: '220px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TANDA TANGAN KONTRAK TAMU:</span>
-                    {bike.signature_url ? (
-                      <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '4px', padding: '8px', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={bike.signature_url} alt="Tanda Tangan Tamu" style={{ maxHeight: '100%', maxWidth: '100%', display: 'block' }} />
-                      </div>
-                    ) : (
-                      <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada tanda tangan</p>
-                    )}
-                  </div>
+                  <div style={{ flex: 1, minWidth: '220px' }}><span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>FOTO KONDISI SEPEDA:</span>{bike.photo_url ? (<a href={bike.photo_url} target="_blank" rel="noopener noreferrer"><img src={bike.photo_url} alt="Kondisi" style={{ width: '100%', height: '140px', borderRadius: '6px', display: 'block', marginTop: '4px', border: '1px solid #cbd5e1', objectFit: 'cover' }} /></a>) : (<p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada foto</p>)}</div>
+                  <div style={{ flex: 1, minWidth: '220px' }}><span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>TANDA TANGAN KONTRAK:</span>{bike.signature_url ? (<div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '4px', padding: '8px', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={bike.signature_url} alt="Tanda Tangan" style={{ maxHeight: '100%', maxWidth: '100%', display: 'block' }} /></div>) : (<p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Tidak ada tanda tangan</p>)}</div>
                 </div>
               </div>
               );
