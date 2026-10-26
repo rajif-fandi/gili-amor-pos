@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { getLaundryOrders, weighLaundryOrder } from "../../actions";
-import { LAUNDRY_RATES, laundryPrice, withFee } from "../../config";
+import { withFee } from "../../config";
 
 interface LaundryOrder {
   id: string;
@@ -84,19 +84,17 @@ function OrderCard({ order, onSaved }: { order: LaundryOrder; onSaved: () => voi
   const weighed = !!order.weight_kg;
 
   const [kg, setKg] = useState(order.weight_kg ? String(order.weight_kg) : "");
-  const [service, setService] = useState(order.service_type === "Express" ? "Express" : "Normal");
   const [saving, setSaving] = useState(false);
 
   const kgNum = Number(kg.replace(",", ".")) || 0;
-  const price = laundryPrice(kgNum, service);
 
   const save = async () => {
     if (kgNum <= 0) return alert("Isi berat (kg) dulu.");
     setSaving(true);
-    const res = await weighLaundryOrder(order.id, { weight_kg: kgNum, service_type: service });
+    const res = await weighLaundryOrder(order.id, { weight_kg: kgNum });
     setSaving(false);
     if (res && res.success) {
-      alert("Tersimpan: " + kgNum + " Kg - " + formatIDR(price));
+      alert("Tersimpan: " + kgNum + " Kg");
       onSaved();
     } else {
       alert("Gagal menyimpan: " + (res?.error || "Unknown error"));
@@ -142,19 +140,6 @@ function OrderCard({ order, onSaved }: { order: LaundryOrder; onSaved: () => voi
         <div className="ld-weigh">
           <label className="ld-label">BERAT (KG)</label>
           <input className="ld-input" inputMode="decimal" placeholder="contoh: 3.5" value={kg} onChange={(e) => setKg(e.target.value.replace(/[^0-9.,]/g, ""))} />
-
-          <label className="ld-label">LAYANAN</label>
-          <div className="ld-seg">
-            <button type="button" className={service === "Normal" ? "on" : ""} onClick={() => setService("Normal")}>
-              Regular<small>{formatIDR(LAUNDRY_RATES.Normal)}/Kg · 24 Jam</small>
-            </button>
-            <button type="button" className={service === "Express" ? "on" : ""} onClick={() => setService("Express")}>
-              Express<small>{formatIDR(LAUNDRY_RATES.Express)}/Kg · 5 Jam</small>
-            </button>
-          </div>
-
-          <div className="ld-price"><span>TOTAL HARGA</span><b>{formatIDR(price)}</b></div>
-
           <button className="ld-save" onClick={save} disabled={saving}>
             {saving ? "MENYIMPAN..." : weighed ? "UPDATE BERAT" : "SIMPAN BERAT"}
           </button>
@@ -204,7 +189,7 @@ export default function LaundryDashboard() {
         <div className="ld-hero-in">
           <div>
             <h1>Laundry Dashboard</h1>
-            <p>Pantau pesanan dan isi berat (kg), harga terhitung otomatis</p>
+            <p>Pantau pesanan dan isi berat (kg). Layanan dan harga diatur kasir.</p>
           </div>
           <button className="ld-refresh" onClick={fetchOrders} disabled={loading}>
             {loading ? "Memuat..." : "↻ Refresh"}

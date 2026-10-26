@@ -3,6 +3,10 @@ import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { submitBikeRental } from "../actions";
+import {
+  bikeDailyRate, STANDARD_LOST_FEE, PADLOCK_LOST_FEE, EBIKE_LOST_FEE,
+  EBIKE_KEY_LOST_FEE, EBIKE_MINOR_DAMAGE_FEE, EBIKE_MAJOR_DAMAGE_FEE
+} from "../config";
 
 const SignatureCanvas = dynamic(() => import("react-signature-canvas"), { ssr: false });
 
@@ -12,6 +16,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PROJECT_URL = "https://havaerpmltfzuupgwnzu.supabase.co";
 
+const idr = (n: number) => "IDR " + n.toLocaleString("en-US");
+
+// Kecilkan foto di HP sebelum di-upload (sisi terpanjang 1280 px, kualitas 70%)
 const compressImage = (file: File): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -71,12 +78,16 @@ const css = `
   .bk-photo { display: block; padding: 22px 12px; text-align: center; border: 2px dashed #bae6fd; border-radius: 14px; background: #f0f9ff; cursor: pointer; color: #0369a1; font-size: 14px; font-weight: 700; }
   .bk-photo img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; display: block; }
   .bk-photo-icon { font-size: 30px; display: block; margin-bottom: 6px; }
-  .bk-terms { font-size: 12px; color: #7f1d1d; line-height: 1.6; padding: 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px; }
-  .bk-terms strong.h { display: block; margin-bottom: 4px; font-size: 12px; letter-spacing: .5px; }
+  .bk-terms { font-size: 12px; color: #7f1d1d; line-height: 1.6; padding: 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px; margin-bottom: 16px; }
+  .bk-terms .h { display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: .5px; font-weight: 800; }
+  .bk-terms ol { margin: 0 0 8px; padding-left: 20px; }
+  .bk-terms li { margin-bottom: 6px; }
+  .bk-terms .sub { margin: 10px 0 4px; font-weight: 800; }
+  .bk-terms ul { margin: 0 0 8px; padding-left: 20px; list-style: disc; }
+  .bk-terms .agree { margin: 10px 0 0; color: #0f172a; font-weight: 700; }
   .bk-sig-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #334155; }
   .bk-clear { border: none; background: #fee2e2; color: #dc2626; font-size: 12px; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
   .bk-sig { border: 1.5px solid #cbd5e1; border-radius: 14px; background: #f8fafc; overflow: hidden; position: relative; }
-  .bk-note { margin: 8px 0 0; font-size: 12px; color: #64748b; line-height: 1.5; }
   .bk-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: rgba(255,255,255,.96); backdrop-filter: blur(10px); border-top: 1px solid #e2e8f0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
   .bk-bar-in { max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
   .bk-total small { display: block; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 1px; }
@@ -110,7 +121,8 @@ export default function BikeRentalForm() {
     };
   }, []);
 
-  const pricePerDay = formData.bike_type === "Standard Bicycle" ? 50000 : 200000;
+  const isEbike = formData.bike_type === "Electric Bike";
+  const pricePerDay = bikeDailyRate(formData.bike_type);
   const estimatedPrice = pricePerDay * formData.duration_days;
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +143,7 @@ export default function BikeRentalForm() {
     setIsSubmitting(true);
     try {
       const photoName = `bike-${Date.now()}.jpg`;
-            const photoBlob = await compressImage(photo);
+      const photoBlob = await compressImage(photo);
       const { error: photoErr } = await supabase.storage.from("gili-storage").upload(photoName, photoBlob, { contentType: "image/jpeg" });
       if (photoErr) throw new Error("Upload foto gagal: " + photoErr.message);
       const photoUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${photoName}`;
@@ -210,13 +222,13 @@ export default function BikeRentalForm() {
               <label className={"bk-opt" + (formData.bike_type === "Standard Bicycle" ? " on" : "")}>
                 <input type="radio" value="Standard Bicycle" checked={formData.bike_type === "Standard Bicycle"} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
                 <div className="bk-emoji">🚲</div>
-                <div className="bk-opt-text"><strong>Standard Bicycle</strong><span>IDR 50,000 / Day</span></div>
+                <div className="bk-opt-text"><strong>Standard Bicycle</strong><span>{idr(bikeDailyRate("Standard Bicycle"))} / Day</span></div>
                 <div className="bk-dot" />
               </label>
-              <label className={"bk-opt" + (formData.bike_type === "Electric Bike" ? " on" : "")}>
-                <input type="radio" value="Electric Bike" checked={formData.bike_type === "Electric Bike"} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
+              <label className={"bk-opt" + (isEbike ? " on" : "")}>
+                <input type="radio" value="Electric Bike" checked={isEbike} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
                 <div className="bk-emoji">⚡</div>
-                <div className="bk-opt-text"><strong>Electric Bike (E-Bike)</strong><span>IDR 200,000 / Day</span></div>
+                <div className="bk-opt-text"><strong>Electric Bike (E-Bike)</strong><span>{idr(bikeDailyRate("Electric Bike"))} / Day</span></div>
                 <div className="bk-dot" />
               </label>
             </div>
@@ -253,11 +265,38 @@ export default function BikeRentalForm() {
                 </label>
               </div>
 
-              <div className="bk-terms" style={{ marginBottom: 16 }}>
-                <strong className="h">TERMS OF LOSS AGREEMENT</strong>
-                1. Guests are fully responsible for the bicycle during the rental period.<br />
-                2. Bike damages will be charged based on local workshop pricing.<br />
-                3. Lost unit replacement fee: <strong>IDR 2,700,000 (Standard)</strong> or <strong>IDR 10,000,000 (E-Bike)</strong>.
+              {/* TERMS OF LOSS AGREEMENT: isi berbeda untuk Standard Bicycle dan Electric Bike */}
+              <div className="bk-terms">
+                <strong className="h">⚠️ Terms of Loss Agreement:</strong>
+                <ol>
+                  <li>Guests are fully responsible for the bicycle during the rental period until it is returned.</li>
+                  <li>Others Bike damages occurs during hiring will be advised in accordance to local bike repair site pricing.</li>
+                  <li>
+                    If the unit is lost, the guest agrees to pay a replacement fee of{" "}
+                    {isEbike ? (
+                      <strong>{idr(EBIKE_LOST_FEE)} (Electric Bike)</strong>
+                    ) : (
+                      <strong>{idr(STANDARD_LOST_FEE)} (Standard Bicycle) / {idr(PADLOCK_LOST_FEE)} (Padlock)</strong>
+                    )}{" "}
+                    directly to the Front Office.
+                  </li>
+                </ol>
+
+                {isEbike && (
+                  <>
+                    {/* TODO: paragraf pembebasan tanggung jawab (bagian atas kertas perjanjian) belum dimasukkan karena foto terpotong */}
+                    <p className="sub">Electric Bike below details:</p>
+                    <ul>
+                      <li>E-Bike lost: <strong>{idr(EBIKE_LOST_FEE)} per/bike</strong></li>
+                      <li>Key lost: <strong>{idr(EBIKE_KEY_LOST_FEE)}</strong></li>
+                      <li>Minor damage: <strong>{idr(EBIKE_MINOR_DAMAGE_FEE)}</strong></li>
+                      <li>Major damage: <strong>{idr(EBIKE_MAJOR_DAMAGE_FEE)}</strong></li>
+                    </ul>
+                    <p style={{ margin: 0 }}>Others E-Bike damages occurs during hiring will be advised in accordance to local e-bike repair site pricing.</p>
+                  </>
+                )}
+
+                <p className="agree">I have read, understand, and certify my compliance by signature.</p>
               </div>
 
               <div className="bk-sig-head">
@@ -268,7 +307,6 @@ export default function BikeRentalForm() {
                 {/* @ts-ignore */}
                 <SignatureCanvas ref={sigCanvas} penColor="black" clearOnResize={false} canvasProps={{ style: { width: "100%", height: "160px", touchAction: "none", maxWidth: "100%" } }} />
               </div>
-              <p className="bk-note">I have read, understand, and certify my compliance by signature.</p>
             </div>
 
             {/* BAR BAWAH: HARGA + SUBMIT */}

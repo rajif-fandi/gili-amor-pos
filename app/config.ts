@@ -31,3 +31,20 @@ export const LAUNDRY_RATES: Record<string, number> = {
 };
 export const laundryPrice = (kg: number, service?: string | null) =>
   Math.round((kg || 0) * (LAUNDRY_RATES[service || "Normal"] ?? LAUNDRY_RATES.Normal));
+
+// Sewa sepeda
+export const BIKE_RATES: Record<string, number> = {
+  "Standard Bicycle": 50000,
+  "Electric Bike": 250000,
+};
+export const bikeDailyRate = (type?: string | null) => BIKE_RATES[type || ""] ?? BIKE_RATES["Standard Bicycle"];
+
+export const BIKE_VENDORS = ["Mr Ikin", "Life is Good"] as const;
+
+// Denda untuk Terms of Loss Agreement (form sewa sepeda)
+export const STANDARD_LOST_FEE = 2700000;
+export const PADLOCK_LOST_FEE = 50000;
+export const EBIKE_LOST_FEE = 5500000;
+export const EBIKE_KEY_LOST_FEE = 500000;
+export const EBIKE_MINOR_DAMAGE_FEE = 1200000;
+export const EBIKE_MAJOR_DAMAGE_FEE = 2000000;

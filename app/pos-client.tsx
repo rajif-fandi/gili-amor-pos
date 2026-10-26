@@ -1,10 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase, processBikeRental, submitLaundryOrder, processLaundryOrder } from "./actions";
+import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, addStaff, updateStaff, deleteStaff, saveShiftClosing, saveCaseFollowUp, resolveCase, processBikeRental, submitLaundryOrder, processLaundryOrder, deleteLaundryOrder, getBikeRentals, updateBikeRental, deleteBikeRental, setBikeReturned } from "./actions";
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
-import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup } from "./config";
+import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS } from "./config";
 
 type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
 
@@ -163,7 +163,27 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
     setLoading(false);
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  // Ambil data baru diam-diam tiap 20 detik, jadi pesanan baru muncul tanpa refresh manual
+  const silentRefresh = async () => {
+    try {
+      const res = await fetch('/api/laundry-orders').then(r => r.json()).catch(() => null);
+      if (res && res.success) setOrders(res.data || []);
+    } catch (e) { /* diamkan */ }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    const timer = setInterval(() => { if (!document.hidden) silentRefresh(); }, 20000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleDelete = async (order: any) => {
+    const warn = order.status === "DONE" ? "\n\nPesanan ini sudah DONE. Catatan transaksinya di laporan keuangan TIDAK ikut terhapus." : "";
+    if (!confirm(`Hapus pesanan laundry Room ${order.room} - ${order.guest_name}?${warn}`)) return;
+    const res = await deleteLaundryOrder(order.id);
+    if (res && res.success) setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    else alert("Gagal menghapus: " + (res?.error || "Unknown error"));
+  };
 
   // Logika Filter (Otomatis menyaring data berdasarkan tanggal & metode bayar)
   const filteredOrders = orders.filter((o) => {
@@ -194,17 +214,18 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
   const handleProcess = async (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
     const data = edits[orderId] || {};
-    if (!order?.weight_kg || !order?.total_price) {
+    if (!order?.weight_kg) {
       return alert("Pesanan ini belum ditimbang. Berat (kg) diisi oleh tim laundry di halaman laundry.");
     }
     if (!data.staff_name) {
       return alert("PENTING: Pilih FO sebelum klik Done!");
     }
 
+    const service = data.service_type || 'Normal';
     const method = data.payment_method || 'Cash';
-    const finalPrice = withFee(order.total_price, method);
-    if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nTotal bayar: ${formatIDR(finalPrice)} (${method})`)) {
-      const res = await processLaundryOrder(orderId, { payment_method: method, staff_name: data.staff_name });
+    const finalPrice = withFee(laundryPrice(order.weight_kg, service), method);
+    if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nLayanan: ${service} (${order.weight_kg} Kg)\nTotal bayar: ${formatIDR(finalPrice)} (${method})`)) {
+      const res = await processLaundryOrder(orderId, { service_type: service, payment_method: method, staff_name: data.staff_name });
       if (res && res.success) {
         alert("Pesanan berhasil diproses dan masuk ke Report!");
         fetchOrders(); 
@@ -365,17 +386,27 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                       {order.weight_kg ? <strong>{order.weight_kg} Kg</strong> : <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 'bold' }}>Belum ditimbang</span>}
                     </td>
                     <td style={{ padding: '16px 12px' }}>
-                      <span>{order.service_type || '-'}</span>
+                      {isDone ? <span>{order.service_type || '-'}</span> : (
+                        <select value={edits[order.id]?.service_type || 'Normal'} onChange={e => handleEditChange(order.id, 'service_type', e.target.value)} style={{ padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                          <option value="Normal">Normal</option>
+                          <option value="Express">Express</option>
+                        </select>
+                      )}
                     </td>
                     <td style={{ padding: '16px 12px' }}>
-                      {order.total_price ? (
-                        <>
-                          <strong>{formatIDR(withFee(order.total_price, isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')))}</strong>
-                          {feeRate(isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')) > 0 && (
-                            <div style={{ fontSize: '10px', color: '#b45309' }}>+ biaya kartu {formatIDR(feeAmount(order.total_price, isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash')))}</div>
-                          )}
-                        </>
-                      ) : <span style={{ color: '#94a3b8' }}>-</span>}
+                      {(() => {
+                        const method = isDone ? order.payment_method : (edits[order.id]?.payment_method || 'Cash');
+                        const base = isDone ? (order.total_price || 0) : (order.weight_kg ? laundryPrice(order.weight_kg, edits[order.id]?.service_type || 'Normal') : 0);
+                        if (!base) return <span style={{ color: '#94a3b8' }}>-</span>;
+                        return (
+                          <>
+                            <strong>{formatIDR(withFee(base, method))}</strong>
+                            {feeRate(method) > 0 && (
+                              <div style={{ fontSize: '10px', color: '#b45309' }}>+ biaya kartu {formatIDR(feeAmount(base, method))}</div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '16px 12px', color: isDone ? '#16a34a' : '#64748b', fontWeight: 'bold' }}>{order.status}</td>
                     <td style={{ padding: '16px 12px' }}>
@@ -404,6 +435,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
                           </select>
                         </>
                       )}
+                      <button onClick={() => handleDelete(order)} style={{ padding: '4px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>Hapus</button>
                     </div>
                     </td>
                   </tr>
@@ -539,7 +571,7 @@ function HomeDashboard({ onLaunch, transactions = [], cases = [] }: { onLaunch: 
   const handleResolveTask = async (caseNo: string) => {
     if(confirm("Tandai jadwal penjemputan/layanan ini SELESAI?")) {
       const result = await resolveCase(caseNo);
-      if (result.success) router.refresh();
+      
     }
   };
 
@@ -688,7 +720,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
     if (!formData.assigned_to) return alert("Pilih staf yang bertugas!");
     setIsSubmitting(true);
     const result = await saveCaseFollowUp(formData);
-    if (result.success) { alert("Tugas berhasil ditambahkan!"); router.refresh(); } 
+    if (result.success) { alert("Tugas berhasil ditambahkan!"); } 
     else alert("Gagal menyimpan: " + result.error);
     setIsSubmitting(false);
   };
@@ -696,7 +728,7 @@ function CasesDashboard({ staffList = [], cases = [] }: { staffList?: any[], cas
   const handleResolve = async (caseNo: string) => {
     if (confirm("Tandai tugas ini selesai?")) {
       const result = await resolveCase(caseNo);
-      if (result.success) router.refresh();
+      
     }
   };
 
@@ -763,7 +795,7 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
   const handleSubmitClosing = async () => {
     setIsSubmitting(true);
     const result = await saveShiftClosing({ openingCash, cashSales, cardSales, expectedCash, actualCash: actualValue, variance, shift: currentStaff ? currentStaff.shift : "Morning" });
-    if (result.success) { alert("Shift closing berhasil disubmit!"); router.refresh(); } 
+    if (result.success) { alert("Shift closing berhasil disubmit!"); } 
     else alert("Gagal menyimpan: " + result.error); 
     setIsSubmitting(false);
   };
@@ -808,34 +840,25 @@ function ShiftClosingDashboard({ transactions = [], shiftClosings = [], currentS
 
 function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] }) {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
-  
-  // State untuk Filter Search & Tanggal
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // "2026-10-25" -> tanggal lokal (awal atau akhir hari), supaya tidak bergeser zona waktu
+  const parseDay = (v: string, endOfDay: boolean) => {
+    const [y, m, d] = v.split("-").map(Number);
+    return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d, 0, 0, 0, 0);
+  };
+
   const displayRows = transactions.filter(row => {
-    // Filter Pencarian (Tamu atau Struk)
     const matchSearch = row.guest.toLowerCase().includes(searchQuery.toLowerCase()) || row.receipt.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Filter Tanggal
-    let matchDate = true;
-    if (startDate || endDate) {
-      // Menggunakan rawDate yang sudah dikirim dari backend
-      const rowDate = new Date(row.rawDate || row.date);
-      if (startDate) {
-        const sDate = new Date(startDate);
-        sDate.setHours(0, 0, 0, 0);
-        if (rowDate < sDate) matchDate = false;
-      }
-      if (endDate) {
-        const eDate = new Date(endDate);
-        eDate.setHours(23, 59, 59, 999);
-        if (rowDate > eDate) matchDate = false;
-      }
+    if (!matchSearch) return false;
+    if (row.rawDate) {
+      const when = new Date(row.rawDate);
+      if (startDate && when < parseDay(startDate, false)) return false;
+      if (endDate && when > parseDay(endDate, true)) return false;
     }
-    
-    return matchSearch && matchDate;
+    return true;
   });
   
   const exportExcel = () => {
@@ -879,30 +902,31 @@ function PaymentDatabaseDashboard({ transactions = [] }: { transactions?: any[] 
       <div className="workspace-content hide-on-print">
         <section className="report-table-panel">
           <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <h2>All Transactions</h2>
-            
-            {/* AREA FILTER BARU */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '4px 8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>DARI</span>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>SAMPAI</span>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-              </div>
-              <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari tamu atau struk..." type="search" value={searchQuery} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '220px' }} />
-              {(startDate || endDate || searchQuery) && (
-                <button onClick={() => { setStartDate(""); setEndDate(""); setSearchQuery(""); }} style={{ padding: '8px 12px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Reset</button>
-              )}
+            <div>
+              <h2>All Transactions</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>{displayRows.length} dari {transactions.length} transaksi</p>
             </div>
-
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', fontSize: '11px', fontWeight: 'bold', color: '#334155' }}>
+                DARI TANGGAL
+                <input type="date" value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)} style={{ marginTop: '4px', padding: '7px 8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', fontSize: '11px', fontWeight: 'bold', color: '#334155' }}>
+                SAMPAI TANGGAL
+                <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} style={{ marginTop: '4px', padding: '7px 8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+              </label>
+              <input onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari tamu atau struk..." type="search" value={searchQuery} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', height: '34px' }} />
+              <button onClick={() => { setStartDate(""); setEndDate(""); setSearchQuery(""); }} style={{ padding: '0 14px', height: '34px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Reset</button>
+            </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Trx ID</th><th>Date</th><th>Guest Name</th><th>Method</th><th>Items Detail</th><th>Total</th><th>Action</th></tr></thead>
               <tbody>
-                {displayRows.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada data transaksi yang ditemukan.</td></tr>
-                ) : displayRows.map((row) => (
+                {displayRows.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada transaksi yang sesuai filter.</td></tr>
+                )}
+                {displayRows.map((row) => (
                   <tr key={row.id}>
                     <td><strong>{row.id}</strong></td><td>{row.date}</td><td>{row.guest}</td>
                     <td><span className={`payment-badge ${row.method.toLowerCase()}`}>{row.method}</span></td>
@@ -973,48 +997,27 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  
-  // State Filter Search untuk Master Data
-  const [searchQuery, setSearchQuery] = useState("");
-  
   const defaultForm = { item_code: "", item_service: "", default_rate: "", category: "CHARGE", billing_type: "PER_UNIT", desk: "none", notes: "" };
   const [formData, setFormData] = useState(defaultForm);
+  const [query, setQuery] = useState("");
 
-  // Logika Pencarian Master Data
-  const displayProducts = products.filter(row => 
-    row.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    row.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    row.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products.filter((row: any) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return String(row.id).toLowerCase().includes(q) || String(row.name).toLowerCase().includes(q) || String(row.category).toLowerCase().includes(q);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { ...formData, default_rate: Number(formData.default_rate) };
     const result = editMode ? await updateMasterItem(payload) : await addMasterItem(payload);
-    if (result.success) { setIsModalOpen(false); router.refresh(); } 
+    if (result.success) { setIsModalOpen(false); } 
     else alert("Gagal menyimpan: " + result.error); 
   };
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div><h2>Master Data</h2></div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ position: 'relative' }}>
-            <input 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Cari item, kode, atau kategori..." 
-              type="search" 
-              value={searchQuery} 
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '280px', outline: 'none' }} 
-            />
-          </div>
-          <button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>
-            + Add New Item
-          </button>
-        </div>
-      </header>
-
+      <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Item</button></header>
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a' }}>
@@ -1035,19 +1038,24 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
           </div>
         </div>
       )}
-
       <div className="workspace-content">
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari kode, nama, atau kategori..." style={{ flex: 1, minWidth: '240px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff' }} />
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>{filteredProducts.length} dari {products.length} item</span>
+          {query && <button onClick={() => setQuery("")} style={{ padding: '8px 14px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Reset</button>}
+        </div>
         <table className="data-table">
           <thead><tr><th>ITEM</th><th>CATEGORY</th><th>RATE</th><th>ACTION</th></tr></thead>
           <tbody>
-            {displayProducts.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada item yang ditemukan.</td></tr>
-            ) : displayProducts.map((row: any) => (
+            {filteredProducts.length === 0 && (
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Tidak ada item yang cocok dengan pencarian.</td></tr>
+            )}
+            {filteredProducts.map((row: any) => (
               <tr key={row.id}>
                 <td><strong>{row.id}</strong><br/>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td>
                 <td>
                   <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon, notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', marginRight: '4px' }}>Edit</button>
-                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
+                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -1068,7 +1076,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = editMode ? await updateStaff(formData) : await addStaff(formData);
-    if (result.success) { setIsModalOpen(false); router.refresh(); } 
+    if (result.success) { setIsModalOpen(false); } 
   };
 
   return (
@@ -1097,7 +1105,7 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
                 <td>{row.name}</td><td>{row.position}</td><td><span className={`badge ${row.role === 'Admin' ? 'blue' : 'mint'}`}>{row.role}</span></td>
                 <td>
                   <button onClick={() => { setEditMode(true); setFormData({ dbId: row.dbId, nama: row.name, posisi: row.position, shift: row.shift, pin: row.pin, role: row.role }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', marginRight: '4px' }}>Edit</button>
-                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteStaff(row.dbId); router.refresh(); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px' }}>Delete</button>
+                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteStaff(row.dbId); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px' }}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -1110,31 +1118,120 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
 
 function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[], setBikes: any, staffName: string }) {
   const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string }>>({});
+  const [editBike, setEditBike] = useState<any>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const completedBikes = bikes.filter((b: any) => b.status === "DONE");
   const grossIncome = completedBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
   const jatahBanana = grossIncome * 0.50;
   const jatahHotel = grossIncome * 0.25;
   const jatahPakJoe = grossIncome - jatahBanana - jatahHotel;
 
+  // Sepeda siap lagi = waktu sewa dimulai + durasi (24 jam per hari)
+  const dueAt = (b: any) => new Date(new Date(b.created_at).getTime() + (b.duration_days || 1) * 24 * 60 * 60 * 1000);
+  const fmtTime = (d: Date) => d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const replaceBike = (updated: any) => setBikes((prev: any[]) => prev.map((b: any) => b.id === updated.id ? updated : b));
+
   const handleProcessBike = async (e: React.FormEvent, id: string) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const unit_no = form.unit.value;
+    const vendor = form.vendor.value;
     const total_price = Number(form.price.value);
     const payment_method = form.payment.value;
 
-    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
+    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\nVendor: ${vendor}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
 
-    const res = await processBikeRental(id, { unit_no, total_price, payment_method, staff_name: staffName });
+    const res = await processBikeRental(id, { unit_no, vendor, total_price, payment_method, staff_name: staffName });
     if (res.success) {
-      setBikes(bikes.map((b: any) => b.id === id ? res.data : b));
+      replaceBike(res.data);
       alert("Pesanan sukses diproses ke dalam laporan!");
     } else alert("Gagal memproses: " + res.error);
   };
 
+  const handleReturn = async (bike: any) => {
+    const res = await setBikeReturned(bike.id, !bike.returned_at);
+    if (res.success) replaceBike(res.data);
+    else alert("Gagal mengubah status: " + res.error);
+  };
+
+  const handleDeleteBike = async (bike: any) => {
+    const warn = bike.status === "DONE" ? "\n\nPesanan ini sudah DONE. Catatan transaksinya di laporan keuangan TIDAK ikut terhapus." : "";
+    if (!confirm(`Hapus data sewa Room ${bike.room} - ${bike.guest_name}?${warn}`)) return;
+    const res = await deleteBikeRental(bike.id);
+    if (res.success) setBikes((prev: any[]) => prev.filter((b: any) => b.id !== bike.id));
+    else alert("Gagal menghapus: " + res.error);
+  };
+
+  const handleSaveBikeEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    const res = await updateBikeRental(editBike.id, {
+      guest_name: editBike.guest_name,
+      room: editBike.room,
+      whatsapp: editBike.whatsapp,
+      bike_type: editBike.bike_type,
+      duration_days: Number(editBike.duration_days),
+      unit_no: editBike.unit_no || "",
+      vendor: editBike.vendor || "",
+    });
+    setSavingEdit(false);
+    if (res.success) {
+      replaceBike(res.data);
+      setEditBike(null);
+    } else alert("Gagal menyimpan: " + res.error);
+  };
+
+  const fieldStyle = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', background: '#fff' } as const;
+  const smallBtn = (bg: string) => ({ padding: '6px 12px', background: bg, color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' } as const);
+
   return (
     <section className="workspace-screen">
       <header className="workspace-header"><div><p className="eyebrow">GILIAMOR BIKE</p><h1>Dashboard Laporan E-Bike</h1></div></header>
+
+      {editBike && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', maxWidth: '100%', maxHeight: '92vh', overflowY: 'auto', color: '#0f172a' }}>
+            <h3 style={{ marginBottom: '4px' }}>Edit Sewa Sepeda</h3>
+            <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>Untuk perpanjangan, ubah Durasi (hari). Waktu siap sepeda ikut berubah.</p>
+            <form onSubmit={handleSaveBikeEdit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <label style={{ width: '30%', fontSize: '12px', fontWeight: 'bold' }}>Room<input required value={editBike.room} onChange={(e) => setEditBike({ ...editBike, room: e.target.value })} style={fieldStyle} /></label>
+                <label style={{ width: '70%', fontSize: '12px', fontWeight: 'bold' }}>Nama Tamu<input required value={editBike.guest_name} onChange={(e) => setEditBike({ ...editBike, guest_name: e.target.value })} style={fieldStyle} /></label>
+              </div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold' }}>WhatsApp<input required value={editBike.whatsapp} onChange={(e) => setEditBike({ ...editBike, whatsapp: e.target.value })} style={fieldStyle} /></label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Jenis Sepeda
+                  <select value={editBike.bike_type} onChange={(e) => setEditBike({ ...editBike, bike_type: e.target.value })} style={fieldStyle}>
+                    <option value="Standard Bicycle">Standard Bicycle</option>
+                    <option value="Electric Bike">Electric Bike</option>
+                  </select>
+                </label>
+                <label style={{ width: '120px', fontSize: '12px', fontWeight: 'bold' }}>Durasi (Hari)<input required type="number" min={1} value={editBike.duration_days} onChange={(e) => setEditBike({ ...editBike, duration_days: e.target.value })} style={fieldStyle} /></label>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Nomor/Warna Unit<input value={editBike.unit_no || ""} onChange={(e) => setEditBike({ ...editBike, unit_no: e.target.value })} style={fieldStyle} /></label>
+                <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
+                  <select value={editBike.vendor || ""} onChange={(e) => setEditBike({ ...editBike, vendor: e.target.value })} style={fieldStyle}>
+                    <option value="">- Pilih vendor -</option>
+                    {BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </label>
+              </div>
+              {editBike.status === "DONE" && (
+                <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>
+                  Pesanan ini sudah DONE. Mengubah durasi tidak mengubah transaksi yang sudah tercatat. Tambahan hari perpanjangan perlu dicatat sebagai transaksi baru di kasir.
+                </p>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button type="button" onClick={() => setEditBike(null)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Batal</button>
+                <button type="submit" disabled={savingEdit} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{savingEdit ? "Menyimpan..." : "Simpan"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="workspace-content">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
@@ -1159,9 +1256,14 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
           <div style={{ padding: '20px' }}>
             {bikes.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#64748b' }}>Belum ada data penyewaan sepeda.</p>
-            ) : bikes.map((bike: any) => (
+            ) : bikes.map((bike: any) => {
+              const returned = !!bike.returned_at;
+              const due = dueAt(bike);
+              const overdue = !returned && Date.now() > due.getTime();
+              const defaultPrice = bikeDailyRate(bike.bike_type) * (bike.duration_days || 1);
+              return (
               <div key={bike.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', gap: '12px', flexWrap: 'wrap' }}>
                   <div>
                     <strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong>
                     <span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span>
@@ -1171,15 +1273,39 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span>
                   </div>
                 </div>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
+                  {returned ? (
+                    <span style={{ background: '#d1fae5', color: '#065f46', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>SELESAI · dikembalikan {fmtTime(new Date(bike.returned_at))}</span>
+                  ) : overdue ? (
+                    <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · LEWAT WAKTU (seharusnya siap {fmtTime(due)})</span>
+                  ) : (
+                    <span style={{ background: '#fef3c7', color: '#92400e', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · siap {fmtTime(due)}</span>
+                  )}
+                  <span style={{ background: '#f1f5f9', color: '#334155', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>Vendor: {bike.vendor || '-'}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button onClick={() => handleReturn(bike)} style={smallBtn(returned ? '#64748b' : '#0ea5e9')}>{returned ? 'Buka Lagi (Masih Disewa)' : 'Sepeda Kembali'}</button>
+                    <button onClick={() => setEditBike({ ...bike })} style={smallBtn('#3b82f6')}>Edit</button>
+                    <button onClick={() => handleDeleteBike(bike)} style={smallBtn('#ef4444')}>Hapus</button>
+                  </div>
+                </div>
+
                 {bike.status === "PENDING" ? (
                   <form onSubmit={(e) => handleProcessBike(e, bike.id)} onChange={(e) => { const f = e.currentTarget; setBikeInputs((prev) => ({ ...prev, [bike.id]: { price: Number(f.price.value), method: f.payment.value } })); }} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Nomor/Warna Unit
-                      <input name="unit" required placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                      <input name="unit" required defaultValue={bike.unit_no || ""} placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
+                      Vendor
+                      <select name="vendor" required defaultValue={bike.vendor || ""} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                        <option value="" disabled>- Pilih vendor -</option>
+                        {BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Harga Final (Rp)
-                      <input name="price" type="number" required defaultValue={bike.bike_type?.includes("Electric") ? 200000 * bike.duration_days : 50000 * bike.duration_days} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                      <input name="price" type="number" required defaultValue={defaultPrice} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>
                       Metode Bayar
@@ -1190,7 +1316,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>
                       Total Bayar
                       <strong style={{ marginTop: '8px', fontSize: '16px', color: '#0f172a' }}>
-                        {formatIDR(withFee(bikeInputs[bike.id]?.price ?? (bike.bike_type?.includes("Electric") ? 200000 : 50000) * bike.duration_days, bikeInputs[bike.id]?.method ?? "Cash"))}
+                        {formatIDR(withFee(bikeInputs[bike.id]?.price ?? defaultPrice, bikeInputs[bike.id]?.method ?? "Cash"))}
                       </strong>
                     </div>
                     <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '38px' }}>Proses (Selesai)</button>
@@ -1224,7 +1350,8 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       </div>
@@ -1241,6 +1368,18 @@ export default function POSClientApp({
   const [currentStaff, setCurrentStaff] = useState<any>(null);
   const [activePage, setActivePage] = useState("Launchpad");
   const [bikes, setBikes] = useState(initialBikes);
+
+  // Saat Bike Dashboard dibuka, ambil data sepeda terbaru lalu cek lagi tiap 20 detik
+  useEffect(() => {
+    if (activePage !== "Bike Dashboard") return;
+    const load = async () => {
+      const res = await getBikeRentals();
+      if (res && res.success && res.data) setBikes(res.data as any);
+    };
+    load();
+    const timer = setInterval(() => { if (!document.hidden) load(); }, 20000);
+    return () => clearInterval(timer);
+  }, [activePage]);
 
   useEffect(() => {
     const sessionData = localStorage.getItem("gili_amor_staff");
@@ -1429,7 +1568,7 @@ export default function POSClientApp({
                 items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
               };
               const result = await saveTransaction(finalOrderData);
-              if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); router.refresh(); } 
+              if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); } 
               else alert("Gagal menyimpan: " + result.error);
             }} 
             style={{ width: '100%', padding: '16px', background: cartItems.length === 0 ? '#cbd5e1' : '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: cartItems.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '15px', display: 'flex', justifyContent: 'space-between' }}>

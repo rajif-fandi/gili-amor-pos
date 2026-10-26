@@ -151,7 +151,9 @@ model BikeRental {
   duration_days  Int
   unit_no        String?
   photo_url      String?  // Link URL gambar kondisi sepeda
-  signature_url  String?  // Link URL tanda tangan digital tamu
+    signature_url  String?  // Link URL tanda tangan digital tamu
+  vendor         String?  // Mr Ikin / Life is Good
+  returned_at    DateTime? // kosong = masih disewa
   total_price    Float?
   payment_method String?
   status         String   @default("PENDING") // PENDING, DONE

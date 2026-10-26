@@ -3,30 +3,29 @@ import POSClientApp from "./pos-client";
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const dbItems = await prisma.masterItem.findMany({ where: { active: true } });
-  const dbStaff = await prisma.staff.findMany({ where: { active: true } });
-  
-  const dbTransaksi = await prisma.transaksi.findMany({
-    orderBy: { tanggal: 'desc' },
-    include: {
-      details: {
-        include: { item: true } 
+  // Semua query dijalankan bersamaan (bukan satu per satu) supaya halaman jauh lebih cepat dimuat
+  const [dbItems, dbStaff, dbTransaksi, dbShiftClosings, dbCases, dbBikes] = await Promise.all([
+    prisma.masterItem.findMany({ where: { active: true } }),
+    prisma.staff.findMany({ where: { active: true } }),
+    prisma.transaksi.findMany({
+      orderBy: { tanggal: 'desc' },
+      include: {
+        details: {
+          include: { item: true } 
+        }
       }
-    }
-  });
-
-  const dbShiftClosings = await prisma.shiftClosing.findMany({
-    orderBy: { tanggal: 'desc' }
-  });
-
-  const dbCases = await prisma.caseFollowUp.findMany({
-    orderBy: { tanggal: 'desc' },
-    include: { staff: true } 
-  });
-
-  const dbBikes = await prisma.bikeRental.findMany({
-    orderBy: { created_at: 'desc' }
-  });
+    }),
+    prisma.shiftClosing.findMany({
+      orderBy: { tanggal: 'desc' }
+    }),
+    prisma.caseFollowUp.findMany({
+      orderBy: { tanggal: 'desc' },
+      include: { staff: true } 
+    }),
+    prisma.bikeRental.findMany({
+      orderBy: { created_at: 'desc' }
+    }),
+  ]);
 
   const formattedProducts = dbItems.map((item) => ({
     id: item.item_code,

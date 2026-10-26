@@ -36,8 +36,8 @@ export async function saveTransaction(data: {
 
     const noTransaksi = "TRX-" + Date.now();
 
-    // Pastikan item terdaftar di MasterItem sebelum disimpan ke detail transaksi
-    for (const item of data.items) {
+    // Pastikan item terdaftar di MasterItem sebelum disimpan ke detail transaksi (dicek paralel agar cepat)
+    await Promise.all(data.items.map(async (item) => {
       const exists = await prisma.masterItem.findUnique({
         where: { item_code: String(item.item_code) }
       });
@@ -56,7 +56,7 @@ export async function saveTransaction(data: {
           }
         });
       }
-    }
+    }));
 
     const baseTotal = Number(data.totalAmount);
     const fee = feeAmount(baseTotal, data.paymentMethod);
@@ -400,6 +400,7 @@ export async function submitBikeRental(data: {
 }
 export async function processBikeRental(id: string, data: {
   unit_no: string;
+  vendor: string;
   total_price: number;
   payment_method: string;
   staff_name: string;
@@ -415,6 +416,7 @@ export async function processBikeRental(id: string, data: {
       where: { id },
       data: {
         unit_no: data.unit_no,
+        vendor: data.vendor,
         total_price: baseTotal,
         payment_method: data.payment_method,
         staff_name: data.staff_name,
@@ -511,12 +513,11 @@ export async function getLaundryOrders() {
     return { success: false, error: error.message };
   }
 }
-// Dipakai halaman /laundry/timbang: staf laundry mengisi kg, harga dihitung otomatis di server.
-export async function weighLaundryOrder(id: string, data: { weight_kg: number; service_type: string }) {
+// Dipakai dashboard laundry: staf laundry hanya mengisi kg. Layanan dan harga ditentukan kasir di POS.
+export async function weighLaundryOrder(id: string, data: { weight_kg: number }) {
   try {
     const kg = Number(data.weight_kg);
     if (!kg || kg <= 0) return { success: false, error: "Berat (kg) harus lebih dari 0." };
-    const service = data.service_type === "Express" ? "Express" : "Normal";
 
     const existing = await prisma.laundryOrder.findUnique({ where: { id } });
     if (!existing) return { success: false, error: "Pesanan tidak ditemukan." };
@@ -524,10 +525,9 @@ export async function weighLaundryOrder(id: string, data: { weight_kg: number; s
 
     const updated = await prisma.laundryOrder.update({
       where: { id },
-      data: { weight_kg: kg, service_type: service, total_price: laundryPrice(kg, service) }
+      data: { weight_kg: kg }
     });
 
-    revalidatePath('/');
     return { success: true, data: updated };
   } catch (error: any) {
     console.error("ERROR WEIGH LAUNDRY:", error);
@@ -537,17 +537,19 @@ export async function weighLaundryOrder(id: string, data: { weight_kg: number; s
 
 // Dipakai tombol Done di POS: kg, layanan, dan harga dasar diambil dari hasil timbang.
 export async function processLaundryOrder(id: string, data: {
+  service_type: string;
   payment_method: string;
   staff_name: string;
 }) {
   try {
     const existing = await prisma.laundryOrder.findUnique({ where: { id } });
     if (!existing) return { success: false, error: "Pesanan tidak ditemukan." };
-    if (!existing.weight_kg || !existing.total_price) {
+    if (!existing.weight_kg) {
       return { success: false, error: "Pesanan ini belum ditimbang. Isi kg dulu di halaman laundry." };
     }
 
-    const baseTotal = Number(existing.total_price);
+    const service = data.service_type === "Express" ? "Express" : "Normal";
+    const baseTotal = laundryPrice(Number(existing.weight_kg), service);
     const fee = feeAmount(baseTotal, data.payment_method);
     const grandTotal = baseTotal + fee;
     const unpaid = isUnpaid(data.payment_method);
@@ -556,6 +558,8 @@ export async function processLaundryOrder(id: string, data: {
     const updated = await prisma.laundryOrder.update({
       where: { id },
       data: {
+        service_type: service,
+        total_price: baseTotal,
         payment_method: data.payment_method,
         staff_name: data.staff_name,
         status: "DONE"
@@ -602,7 +606,7 @@ export async function processLaundryOrder(id: string, data: {
         payment_status: unpaid ? "UNPAID" : "PAID",
         room: updated.room || "-",
         staff_id: staffId,
-        notes: `Laundry ${existing.weight_kg}Kg - ${existing.service_type || "Normal"}`,
+        notes: `Laundry ${existing.weight_kg}Kg - ${service}`,
         details: {
           create: [
             { item_code: itemCode, qty: 1, duration: 1, rate: baseTotal, discount: 0, total: baseTotal },
@@ -641,6 +645,82 @@ export async function updateLaundryGuestInfo(id: string, data: { room: string; g
     });
     return { success: true, data: updated };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Hapus satu pesanan laundry (tidak menghapus catatan transaksi yang sudah terbentuk)
+export async function deleteLaundryOrder(id: string) {
+  try {
+    await prisma.laundryOrder.delete({ where: { id } });
+    return { success: true };
+  } catch (error: any) {
+    console.error("ERROR DELETE LAUNDRY:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ---------- SEWA SEPEDA: ambil ulang, edit, hapus, tandai kembali ----------
+export async function getBikeRentals() {
+  try {
+    const data = await prisma.bikeRental.findMany({ orderBy: { created_at: 'desc' } });
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateBikeRental(id: string, data: {
+  guest_name: string;
+  room: string;
+  whatsapp: string;
+  bike_type: string;
+  duration_days: number;
+  unit_no?: string;
+  vendor?: string;
+}) {
+  try {
+    const days = Math.max(1, Math.floor(Number(data.duration_days) || 1));
+    const updated = await prisma.bikeRental.update({
+      where: { id },
+      data: {
+        guest_name: data.guest_name,
+        room: data.room,
+        whatsapp: data.whatsapp,
+        bike_type: data.bike_type,
+        duration_days: days,
+        unit_no: data.unit_no || null,
+        vendor: data.vendor || null,
+      }
+    });
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("ERROR UPDATE BIKE:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Hapus satu data sewa sepeda (tidak menghapus catatan transaksi yang sudah terbentuk)
+export async function deleteBikeRental(id: string) {
+  try {
+    await prisma.bikeRental.delete({ where: { id } });
+    return { success: true };
+  } catch (error: any) {
+    console.error("ERROR DELETE BIKE:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Tandai sepeda sudah kembali (selesai) atau buka lagi (masih disewa)
+export async function setBikeReturned(id: string, returned: boolean) {
+  try {
+    const updated = await prisma.bikeRental.update({
+      where: { id },
+      data: { returned_at: returned ? new Date() : null }
+    });
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("ERROR RETURN BIKE:", error);
     return { success: false, error: error.message };
   }
 }
