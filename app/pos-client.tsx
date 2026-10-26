@@ -925,7 +925,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
   const router = useRouter(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const defaultForm = { item_code: "", item_service: "", default_rate: "", category: "CHARGE", billing_type: "PER_UNIT", desk: "none", notes: "" };
+  const defaultForm = { item_code: "", item_service: "", default_rate: "", category: "CHARGE", billing_type: "PER_UNIT", desk: "room", notes: "" };
   const [formData, setFormData] = useState(defaultForm);
   const [query, setQuery] = useState("");
 
@@ -948,19 +948,35 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
       <header className="workspace-header"><div><h2>Master Data</h2></div><button className="export-button add-case-button" onClick={() => { setEditMode(false); setFormData(defaultForm); setIsModalOpen(true); }}>Add New Item</button></header>
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', color: '#0f172a', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px' }}>{editMode ? "Edit Item" : "Add New Item"}</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div><label>Item Code</label><input type="text" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} disabled={editMode} /></div>
-              <div><label>Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-              <div><label>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+              <div><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Item Code</label><input type="text" required value={formData.item_code} onChange={(e) => setFormData({...formData, item_code: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }} disabled={editMode} /></div>
+              <div><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }} /></div>
+              <div><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }} /></div>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '6px' }}><option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option></select>
-                <select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '6px' }}><option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option></select>
+                <div style={{ flex: 1 }}><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', marginTop: '4px', background: '#fff' }}><option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option></select></div>
+                <div style={{ flex: 1 }}><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Billing Type</label><select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', marginTop: '4px', background: '#fff' }}><option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option></select></div>
+              </div>
+              {/* Pilihan Ikon / Logo Ditambahkan Kembali di Sini */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Pilih Ikon / Logo</label>
+                <select value={formData.desk} onChange={(e) => setFormData({...formData, desk: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px', background: '#fff' }}>
+                  <option value="room">Room / Bed</option>
+                  <option value="bike">Bike / Sepeda</option>
+                  <option value="boat">Boat / Aktivitas</option>
+                  <option value="coffee">Food & Beverage / Coffee</option>
+                  <option value="spa">Spa / Wellness</option>
+                  <option value="car">Car / Transport</option>
+                  <option value="laundry">Laundry</option>
+                  <option value="camera">Camera / Tour</option>
+                  <option value="fish">Fish / Diving</option>
+                  <option value="buy">Retail / Buy</option>
+                </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px' }}>Cancel</button>
-                <button type="submit" style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px' }}>Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
               </div>
             </form>
           </div>
@@ -982,8 +998,8 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
               <tr key={row.id}>
                 <td><strong>{row.id}</strong><br/>{row.name}</td><td>{row.category}</td><td>{formatIDR(row.price)}</td>
                 <td>
-                  <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon, notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', marginRight: '4px' }}>Edit</button>
-                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px' }}>Delete</button>
+                  <button onClick={() => { setEditMode(true); setFormData({ item_code: row.id, item_service: row.name, default_rate: row.price.toString(), category: row.category, billing_type: row.billing_type, desk: row.icon || "room", notes: row.notes || "" }); setIsModalOpen(true); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', marginRight: '4px', cursor: 'pointer' }}>Edit</button>
+                  <button onClick={async () => { if(confirm("Hapus?")) { await deleteMasterItem(row.id); } }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
                 </td>
               </tr>
             ))}
