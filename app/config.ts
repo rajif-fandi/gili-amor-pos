@@ -2,7 +2,6 @@
 // File biasa (bukan "use server"), jadi bisa dipakai di actions.ts maupun halaman client.
 
 export const PAYMENT_METHODS = [
-  "Unpaid",
   "Card (Debit/QRIS)",
   "Card (2,5%)",
   "Card (4%)",
@@ -17,10 +16,13 @@ const FEE_RATES: Record<string, number> = {
 };
 
 export const feeRate = (method?: string | null) => FEE_RATES[method || ""] || 0;
-export const feeAmount = (base: number, method?: string | null) => Math.round((base || 0) * feeRate(method));
-export const withFee = (base: number, method?: string | null) => Math.round(base || 0) + feeAmount(base, method);
+// Math.round DIBUANG: Biaya admin sekarang akan memiliki koma desimal asli
+export const feeAmount = (base: number, method?: string | null) => (base || 0) * feeRate(method);
+// Math.round DIBUANG: Total pembayaran sekarang menyesuaikan nilai aslinya
+export const withFee = (base: number, method?: string | null) => (base || 0) + feeAmount(base, method);
 
 export const isCard = (method?: string | null) => (method || "").startsWith("Card");
+// isUnpaid dibiarkan agar data lama di database yang berstatus Unpaid tidak error saat dibaca
 export const isUnpaid = (method?: string | null) => method === "Unpaid";
 export const methodGroup = (method?: string | null) => (isCard(method) ? "Card" : method || "");
 
@@ -29,8 +31,9 @@ export const LAUNDRY_RATES: Record<string, number> = {
   Normal: 30000,
   Express: 50000,
 };
+// Math.round DIBUANG: Harga dari perkalian berat (kg) yang berkoma tidak akan dibulatkan
 export const laundryPrice = (kg: number, service?: string | null) =>
-  Math.round((kg || 0) * (LAUNDRY_RATES[service || "Normal"] ?? LAUNDRY_RATES.Normal));
+  (kg || 0) * (LAUNDRY_RATES[service || "Normal"] ?? LAUNDRY_RATES.Normal);
 
 // Sewa sepeda
 export const BIKE_RATES: Record<string, number> = {
