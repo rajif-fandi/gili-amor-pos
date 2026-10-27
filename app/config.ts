@@ -54,4 +54,4 @@ export const EBIKE_MAJOR_DAMAGE_FEE = 2000000;
 
 // Pembagian hasil sewa sepeda
 export const EBIKE_SPLIT = { banana: 0.5, hotel: 0.25, joe: 0.25 };
-export const BIKE_SPLIT = { hotel: 0.15, ikin: 0.35, lifeIsGood: 0.35 };
+export const BIKE_SPLIT = { hotel: 0.30, vendor: 0.70 }; // vendor = Mr Ikin / Life is Good, dihitung dari sewa sepedanya sendiri

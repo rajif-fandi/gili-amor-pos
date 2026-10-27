@@ -1097,11 +1097,15 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const jatahHotelE = Math.round(grossIncome * EBIKE_SPLIT.hotel);
   const jatahPakJoe = grossIncome - jatahBanana - jatahHotelE;
 
-  const jatahHotelB = Math.round(grossIncome * BIKE_SPLIT.hotel);
-  const jatahIkin = Math.round(grossIncome * BIKE_SPLIT.ikin);
-  const jatahLife = Math.round(grossIncome * BIKE_SPLIT.lifeIsGood);
-  const sisaBike = grossIncome - jatahHotelB - jatahIkin - jatahLife;
-  const sisaPercent = Math.round((1 - BIKE_SPLIT.hotel - BIKE_SPLIT.ikin - BIKE_SPLIT.lifeIsGood) * 100);
+  // Bike biasa: vendor mendapat 70% dari sewa sepedanya sendiri, hotel 30% dari semua sewa
+  const grossByVendor = (v: string) => completedBikes.filter((b: any) => b.vendor === v).reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
+  const grossIkin = grossByVendor("Mr Ikin");
+  const grossLife = grossByVendor("Life is Good");
+  const grossNoVendor = grossIncome - grossIkin - grossLife;
+  const jatahIkin = Math.round(grossIkin * BIKE_SPLIT.vendor);
+  const jatahLife = Math.round(grossLife * BIKE_SPLIT.vendor);
+  const sisaBike = Math.round(grossNoVendor * BIKE_SPLIT.vendor);
+  const jatahHotelB = grossIncome - jatahIkin - jatahLife - sisaBike;
 
   const dueAt = (b: any) => new Date(new Date(b.created_at).getTime() + (b.duration_days || 1) * 24 * 60 * 60 * 1000);
   const fmtTime = (d: Date) => d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1248,17 +1252,20 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotelB)}</div>
             </div>
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: 'bold' }}>BERSIH MR IKIN ({Math.round(BIKE_SPLIT.ikin * 100)}%)</span>
+              <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: 'bold' }}>BERSIH MR IKIN ({Math.round(BIKE_SPLIT.vendor * 100)}%)</span>
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahIkin)}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>dari sewa {formatIDR(grossIkin)}</div>
             </div>
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 'bold' }}>BERSIH LIFE IS GOOD ({Math.round(BIKE_SPLIT.lifeIsGood * 100)}%)</span>
+              <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 'bold' }}>BERSIH LIFE IS GOOD ({Math.round(BIKE_SPLIT.vendor * 100)}%)</span>
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahLife)}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>dari sewa {formatIDR(grossLife)}</div>
             </div>
-            {sisaPercent > 0 && (
+            {grossNoVendor > 0 && (
               <div style={{ background: '#fef3c7', border: '1px dashed #f59e0b', padding: '16px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 'bold' }}>SISA ({sisaPercent}%) BELUM DIALOKASIKAN</span>
+                <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 'bold' }}>BELUM ADA VENDOR ({Math.round(BIKE_SPLIT.vendor * 100)}%)</span>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(sisaBike)}</div>
+                <div style={{ fontSize: '11px', color: '#92400e', marginTop: '2px' }}>dari sewa {formatIDR(grossNoVendor)}. Pilih vendor lewat tombol Edit.</div>
               </div>
             )}
           </div>
