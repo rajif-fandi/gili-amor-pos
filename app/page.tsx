@@ -52,14 +52,16 @@ export default async function Page() {
 
   const formattedTransactions = dbTransaksi.map((trx) => {
     const dateObj = new Date(trx.tanggal);
-    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    
+    // FIX: Menambahkan timeZone Asia/Makassar agar waktu selalu sesuai zona WITA
+    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
+    const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
     
     return {
       id: trx.no_transaksi, 
       receipt: trx.no_transaksi, 
       date: `${dateStr}, ${timeStr}`,
-      rawDate: dateObj.toISOString(), // <-- Data Tanggal asli untuk filter
+      rawDate: dateObj.toISOString(), 
       time: timeStr,
       guest: trx.nama_tamu || "Walk-in Guest",
       room: trx.room || "-",
