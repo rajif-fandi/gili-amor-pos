@@ -51,3 +51,7 @@ export const EBIKE_LOST_FEE = 5500000;
 export const EBIKE_KEY_LOST_FEE = 500000;
 export const EBIKE_MINOR_DAMAGE_FEE = 1200000;
 export const EBIKE_MAJOR_DAMAGE_FEE = 2000000;
+
+// Pembagian hasil sewa sepeda
+export const EBIKE_SPLIT = { banana: 0.5, hotel: 0.25, joe: 0.25 };
+export const BIKE_SPLIT = { hotel: 0.15, ikin: 0.35, lifeIsGood: 0.35 };

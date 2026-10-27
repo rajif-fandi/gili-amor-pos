@@ -400,7 +400,7 @@ export async function submitBikeRental(data: {
 }
 export async function processBikeRental(id: string, data: {
   unit_no: string;
-  vendor: string;
+  vendor?: string;
   total_price: number;
   payment_method: string;
   staff_name: string;
@@ -416,7 +416,7 @@ export async function processBikeRental(id: string, data: {
       where: { id },
       data: {
         unit_no: data.unit_no,
-        vendor: data.vendor,
+        vendor: data.vendor ?? null,
         total_price: baseTotal,
         payment_method: data.payment_method,
         staff_name: data.staff_name,

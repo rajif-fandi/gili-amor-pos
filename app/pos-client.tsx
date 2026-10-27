@@ -4,7 +4,7 @@ import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, add
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
-import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS } from "./config";
+import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS, EBIKE_SPLIT, BIKE_SPLIT } from "./config";
 
 type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
 
@@ -125,6 +125,7 @@ const navItems = [
   { label: "Boat", icon: "boat" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Buy", icon: "buy" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Bike Dashboard", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
+  { label: "E-Bike Dashboard", icon: "bike" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Laundry Dashboard", icon: "laundry" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Case / Follow-up", icon: "case" as IconName, roles: ["Admin", "Kasir"] },
   { label: "Payment Database", icon: "database" as IconName, roles: ["Admin"] },
@@ -1060,7 +1061,10 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   );
 }
 
-function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[], setBikes: any, staffName: string }) {
+function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }: { mode: "standard" | "electric", bikes?: any[], setBikes: any, staffName: string }) {
+  const isElectric = mode === "electric";
+  // Data dipisah: sepeda listrik hanya di E-Bike Dashboard, sepeda biasa hanya di Bike Dashboard
+  const bikes = allBikes.filter((b: any) => !!b.bike_type?.includes("Electric") === isElectric);
   const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string }>>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("gili_bike_drafts");
@@ -1087,9 +1091,17 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
 
   const completedBikes = bikes.filter((b: any) => b.status === "DONE");
   const grossIncome = completedBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
-  const jatahBanana = grossIncome * 0.50;
-  const jatahHotel = grossIncome * 0.25;
-  const jatahPakJoe = grossIncome - jatahBanana - jatahHotel;
+
+  // Pembagian hasil (persentase diatur di config.ts)
+  const jatahBanana = Math.round(grossIncome * EBIKE_SPLIT.banana);
+  const jatahHotelE = Math.round(grossIncome * EBIKE_SPLIT.hotel);
+  const jatahPakJoe = grossIncome - jatahBanana - jatahHotelE;
+
+  const jatahHotelB = Math.round(grossIncome * BIKE_SPLIT.hotel);
+  const jatahIkin = Math.round(grossIncome * BIKE_SPLIT.ikin);
+  const jatahLife = Math.round(grossIncome * BIKE_SPLIT.lifeIsGood);
+  const sisaBike = grossIncome - jatahHotelB - jatahIkin - jatahLife;
+  const sisaPercent = Math.round((1 - BIKE_SPLIT.hotel - BIKE_SPLIT.ikin - BIKE_SPLIT.lifeIsGood) * 100);
 
   const dueAt = (b: any) => new Date(new Date(b.created_at).getTime() + (b.duration_days || 1) * 24 * 60 * 60 * 1000);
   const fmtTime = (d: Date) => d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1099,13 +1111,13 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const unit_no = form.unit.value;
-    const vendor = form.vendor.value;
+    const vendor = isElectric ? "" : form.vendor.value;
     const total_price = Number(form.price.value);
     const payment_method = form.payment.value;
 
-    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\nVendor: ${vendor}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
+    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${vendor ? "Vendor: " + vendor + "\n" : ""}Total bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
 
-    const res = await processBikeRental(id, { unit_no, vendor, total_price, payment_method, staff_name: staffName });
+    const res = await processBikeRental(id, { unit_no, vendor: vendor || undefined, total_price, payment_method, staff_name: staffName });
     if (res.success) {
       replaceBike(res.data);
       alert("Pesanan sukses diproses ke dalam laporan!");
@@ -1133,7 +1145,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
     const res = await updateBikeRental(editBike.id, {
       guest_name: editBike.guest_name, room: editBike.room, whatsapp: editBike.whatsapp,
       bike_type: editBike.bike_type, duration_days: Number(editBike.duration_days),
-      unit_no: editBike.unit_no || "", vendor: editBike.vendor || "",
+      unit_no: editBike.unit_no || "", vendor: editBike.bike_type?.includes("Electric") ? "" : (editBike.vendor || ""),
     });
     setSavingEdit(false);
     if (res.success) { replaceBike(res.data); setEditBike(null); } 
@@ -1164,7 +1176,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
 
   return (
     <section className="workspace-screen">
-      <header className="workspace-header"><div><p className="eyebrow">GILIAMOR BIKE</p><h1>Dashboard Laporan E-Bike</h1></div></header>
+      <header className="workspace-header"><div><p className="eyebrow">{isElectric ? "GILIAMOR E-BIKE" : "GILIAMOR BIKE"}</p><h1>{isElectric ? "Dashboard Laporan E-Bike" : "Dashboard Laporan Bike"}</h1></div></header>
 
       {editBike && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
@@ -1187,11 +1199,13 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Nomor/Warna Unit<input value={editBike.unit_no || ""} onChange={(e) => setEditBike({ ...editBike, unit_no: e.target.value })} style={fieldStyle} /></label>
-                <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
-                  <select value={editBike.vendor || ""} onChange={(e) => setEditBike({ ...editBike, vendor: e.target.value })} style={fieldStyle}>
-                    <option value="">- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </label>
+                {!editBike.bike_type?.includes("Electric") && (
+                  <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
+                    <select value={editBike.vendor || ""} onChange={(e) => setEditBike({ ...editBike, vendor: e.target.value })} style={fieldStyle}>
+                      <option value="">- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </label>
+                )}
               </div>
               {editBike.status === "DONE" && <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>Pesanan ini sudah DONE. Mengubah durasi tidak mengubah transaksi yang sudah tercatat.</p>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
@@ -1204,12 +1218,51 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
       )}
 
       <div className="workspace-content">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span><div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{formatIDR(grossIncome)}</div></div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>BERSIH MR. BANANA (50%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahBanana)}</div></div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL (25%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotel)}</div></div>
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}><span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>BERSIH PAK JOE (25%)</span><div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div></div>
-        </div>
+        {isElectric ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME E-BIKE</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{formatIDR(grossIncome)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>BERSIH MR. BANANA ({Math.round(EBIKE_SPLIT.banana * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahBanana)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL ({Math.round(EBIKE_SPLIT.hotel * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotelE)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>BERSIH PAK JOE ({Math.round(EBIKE_SPLIT.joe * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahPakJoe)}</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ background: '#0f172a', color: '#fff', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', opacity: 0.9 }}>GROSS INCOME BIKE</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px', color: '#34d399' }}>{formatIDR(grossIncome)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>JATAH HOTEL ({Math.round(BIKE_SPLIT.hotel * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahHotelB)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: 'bold' }}>BERSIH MR IKIN ({Math.round(BIKE_SPLIT.ikin * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahIkin)}</div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 'bold' }}>BERSIH LIFE IS GOOD ({Math.round(BIKE_SPLIT.lifeIsGood * 100)}%)</span>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(jatahLife)}</div>
+            </div>
+            {sisaPercent > 0 && (
+              <div style={{ background: '#fef3c7', border: '1px dashed #f59e0b', padding: '16px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 'bold' }}>SISA ({sisaPercent}%) BELUM DIALOKASIKAN</span>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginTop: '4px' }}>{formatIDR(sisaBike)}</div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Kotak Filter Pencarian dan Tanggal untuk Sepeda */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end', background: '#fff', padding: '16px 24px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
@@ -1220,7 +1273,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
         </div>
 
         <section className="report-table-panel">
-          <div className="panel-heading"><h2>Daftar Pesanan Sepeda Tamu</h2></div>
+          <div className="panel-heading"><h2>{isElectric ? "Daftar Pesanan E-Bike Tamu" : "Daftar Pesanan Sepeda Tamu"}</h2></div>
           <div style={{ padding: '20px' }}>
             {filteredBikes.length === 0 ? <p style={{ textAlign: 'center', color: '#64748b' }}>Tidak ada penyewaan sepeda yang sesuai filter.</p> : filteredBikes.map((bike: any) => {
               const returned = !!bike.returned_at;
@@ -1237,7 +1290,7 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
                   {returned ? (<span style={{ background: '#d1fae5', color: '#065f46', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>SELESAI · dikembalikan {fmtTime(new Date(bike.returned_at))}</span>) : overdue ? (<span style={{ background: '#fee2e2', color: '#b91c1c', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · LEWAT WAKTU (seharusnya siap {fmtTime(due)})</span>) : (<span style={{ background: '#fef3c7', color: '#92400e', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>MASIH DISEWA · siap {fmtTime(due)}</span>)}
-                  <span style={{ background: '#f1f5f9', color: '#334155', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>Vendor: {bike.vendor || '-'}</span>
+                  {!isElectric && <span style={{ background: '#f1f5f9', color: '#334155', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>Vendor: {bike.vendor || '-'}</span>}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <button onClick={() => handleReturn(bike)} style={smallBtn(returned ? '#64748b' : '#0ea5e9')}>{returned ? 'Buka Lagi (Masih Disewa)' : 'Sepeda Kembali'}</button>
                     <button onClick={() => setEditBike({ ...bike })} style={smallBtn('#3b82f6')}>Edit</button>
@@ -1250,11 +1303,13 @@ function BikeRentalDashboard({ bikes = [], setBikes, staffName }: { bikes?: any[
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Nomor/Warna Unit
                       <input name="unit" required value={bikeInputs[bike.id]?.unit_no ?? (bike.unit_no || "")} onChange={(e) => handleBikeChange(bike.id, 'unit_no', e.target.value)} placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
+                    {!isElectric && (
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Vendor
                       <select name="vendor" required value={bikeInputs[bike.id]?.vendor ?? (bike.vendor || "")} onChange={(e) => handleBikeChange(bike.id, 'vendor', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
                         <option value="" disabled>- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
                       </select>
                     </label>
+                    )}
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Harga Final (Rp)
                       <input name="price" type="number" required value={bikeInputs[bike.id]?.price ?? defaultPrice} onChange={(e) => handleBikeChange(bike.id, 'price', Number(e.target.value))} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
@@ -1301,7 +1356,7 @@ export default function POSClientApp({
 
   // Saat Bike Dashboard dibuka, ambil data sepeda terbaru lalu cek lagi tiap 20 detik
   useEffect(() => {
-    if (activePage !== "Bike Dashboard") return;
+    if (activePage !== "Bike Dashboard" && activePage !== "E-Bike Dashboard") return;
     const load = async () => {
       const res = await getBikeRentals();
       if (res && res.success && res.data) setBikes(res.data as any);
@@ -1401,7 +1456,8 @@ export default function POSClientApp({
       {activePage === "Case Report" && isAdmin && <CaseReportDashboard cases={initialCases} />}
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
-      {activePage === "Bike Dashboard" && <BikeRentalDashboard bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "Bike Dashboard" && <BikeRentalDashboard mode="standard" bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "E-Bike Dashboard" && <BikeRentalDashboard mode="electric" bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
       
       {/* LAUNDRY DASHBOARD DIRENDER DI SINI */}
       {activePage === "Laundry Dashboard" && <LaundryDashboardContent staffList={initialStaff} />}
