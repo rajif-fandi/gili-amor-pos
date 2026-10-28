@@ -1090,7 +1090,19 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const [endDate, setEndDate] = useState("");
 
   const completedBikes = bikes.filter((b: any) => b.status === "DONE");
-  const grossIncome = completedBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
+
+  // Rekap kartu atas dihitung per bulan kalender (zona WITA), jadi otomatis mulai dari 0 lagi tiap awal bulan.
+  // Daftar pesanan di bawah tidak ikut direset, riwayat tetap tersimpan.
+  const monthKey = (d: any) => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit' }).formatToParts(new Date(d));
+    return parts.find((x) => x.type === 'year')!.value + '-' + parts.find((x) => x.type === 'month')!.value;
+  };
+  const monthLabel = (key: string) => new Date(key + '-01T12:00:00+08:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' });
+  const currentMonth = monthKey(new Date());
+  const [reportMonth, setReportMonth] = useState<string>(currentMonth);
+  const monthOptions = Array.from(new Set([currentMonth, ...completedBikes.map((b: any) => monthKey(b.created_at))])).sort().reverse();
+  const monthBikes = reportMonth === "ALL" ? completedBikes : completedBikes.filter((b: any) => monthKey(b.created_at) === reportMonth);
+  const grossIncome = monthBikes.reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
 
   // Pembagian hasil (persentase diatur di config.ts)
   const jatahBanana = Math.round(grossIncome * EBIKE_SPLIT.banana);
@@ -1098,7 +1110,7 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const jatahPakJoe = grossIncome - jatahBanana - jatahHotelE;
 
   // Bike biasa: vendor mendapat 70% dari sewa sepedanya sendiri, hotel 30% dari semua sewa
-  const grossByVendor = (v: string) => completedBikes.filter((b: any) => b.vendor === v).reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
+  const grossByVendor = (v: string) => monthBikes.filter((b: any) => b.vendor === v).reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
   const grossIkin = grossByVendor("Mr Ikin");
   const grossLife = grossByVendor("Life is Good");
   const grossNoVendor = grossIncome - grossIkin - grossLife;
@@ -1222,6 +1234,16 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
       )}
 
       <div className="workspace-content">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>REKAP BULAN:{' '}
+            <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} style={{ marginLeft: '6px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: 'bold' }}>
+              {monthOptions.map((m) => <option key={m} value={m}>{monthLabel(m)}{m === currentMonth ? ' (bulan ini)' : ''}</option>)}
+              <option value="ALL">Semua waktu</option>
+            </select>
+          </label>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>Total otomatis mulai dari 0 lagi tiap awal bulan. Riwayat pesanan di bawah tetap tersimpan.</span>
+        </div>
+
         {isElectric ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
             <div style={{ background: '#b45309', color: '#fff', padding: '16px', borderRadius: '8px' }}>
