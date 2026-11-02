@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
-import { submitBikeRental } from "../actions";
+import { submitBikeBatch } from "../bike-actions";
 import {
   bikeDailyRate, STANDARD_LOST_FEE, PADLOCK_LOST_FEE, EBIKE_LOST_FEE,
   EBIKE_KEY_LOST_FEE, EBIKE_MINOR_DAMAGE_FEE, EBIKE_MAJOR_DAMAGE_FEE
@@ -64,6 +64,11 @@ const css = `
   .bk-opt-text { flex: 1; }
   .bk-opt-text strong { display: block; font-size: 15px; color: #0f172a; }
   .bk-opt-text span { font-size: 13px; color: #64748b; }
+  .bk-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .bk-qty button { width: 38px; height: 38px; border: none; border-radius: 10px; font-size: 22px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+  .bk-qty .m { background: #fee2e2; color: #ef4444; }
+  .bk-qty .p { background: #0ea5e9; color: #fff; }
+  .bk-qty b { min-width: 24px; text-align: center; font-size: 18px; }
   .bk-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cbd5e1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   .bk-opt.on .bk-dot { border-color: #0ea5e9; }
   .bk-opt.on .bk-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #0ea5e9; }
@@ -102,10 +107,26 @@ const css = `
   .bk-ok button { width: 100%; padding: 18px; border: none; border-radius: 14px; background: #0284c7; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
 `;
 
+function QtyCard({ emoji, title, price, qty, setQty }: { emoji: string; title: string; price: string; qty: number; setQty: (n: number) => void }) {
+  return (
+    <div className={"bk-opt" + (qty > 0 ? " on" : "")} style={{ cursor: "default" }}>
+      <div className="bk-emoji">{emoji}</div>
+      <div className="bk-opt-text"><strong>{title}</strong><span>{price}</span></div>
+      <div className="bk-qty">
+        <button type="button" className="m" onClick={() => setQty(Math.max(0, qty - 1))} aria-label={"Kurangi " + title}>−</button>
+        <b>{qty}</b>
+        <button type="button" className="p" onClick={() => setQty(qty + 1)} aria-label={"Tambah " + title}>+</button>
+      </div>
+    </div>
+  );
+}
+
 export default function BikeRentalForm() {
   const [formData, setFormData] = useState({
-    room: "", guest_name: "", whatsapp: "", bike_type: "Standard Bicycle", duration_days: 1
+    room: "", guest_name: "", whatsapp: "", duration_days: 1
   });
+  const [stdQty, setStdQty] = useState(0);
+  const [ebikeQty, setEbikeQty] = useState(0);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,9 +142,10 @@ export default function BikeRentalForm() {
     };
   }, []);
 
-  const isEbike = formData.bike_type === "Electric Bike";
-  const pricePerDay = bikeDailyRate(formData.bike_type);
-  const estimatedPrice = pricePerDay * formData.duration_days;
+  const totalUnits = stdQty + ebikeQty;
+  const showStd = stdQty > 0 || totalUnits === 0;
+  const showEbike = ebikeQty > 0;
+  const estimatedPrice = (stdQty * bikeDailyRate("Standard Bicycle") + ebikeQty * bikeDailyRate("Electric Bike")) * formData.duration_days;
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -137,6 +159,7 @@ export default function BikeRentalForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (totalUnits === 0) return alert("Pilih minimal 1 sepeda.");
     if (!photo) return alert("Wajib melampirkan foto kondisi sepeda!");
     if (sigCanvas.current?.isEmpty()) return alert("Tanda tangan wajib diisi!");
 
@@ -155,11 +178,13 @@ export default function BikeRentalForm() {
       if (sigErr) throw new Error("Upload tanda tangan gagal: " + sigErr.message);
       const sigUrl = `${PROJECT_URL}/storage/v1/object/public/gili-storage/${sigName}`;
 
-      const res = await submitBikeRental({
-        ...formData,
-        photo_url: photoUrl,
-        signature_url: sigUrl
-      });
+      const res = await submitBikeBatch(
+        { ...formData, photo_url: photoUrl, signature_url: sigUrl },
+        [
+          { bike_type: "Standard Bicycle", quantity: stdQty },
+          { bike_type: "Electric Bike", quantity: ebikeQty },
+        ]
+      );
 
       if (res.success) setIsSuccess(true);
       else alert("Gagal mengirim data: " + res.error);
@@ -177,7 +202,7 @@ export default function BikeRentalForm() {
           <div className="bk-ok-icon">✓</div>
           <h2>Order Submitted!</h2>
           <p>Thank you. Please bring your device and show this screen to the Front Desk to collect your bike key.</p>
-          <button onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); }}>
+          <button onClick={() => { setIsSuccess(false); setPhoto(null); setPhotoPreview(null); setStdQty(0); setEbikeQty(0); }}>
             Rent Another Bike
           </button>
         </div>
@@ -219,18 +244,11 @@ export default function BikeRentalForm() {
             {/* PILIH SEPEDA */}
             <div className="bk-card">
               <h3 className="bk-title">Bicycle Selection</h3>
-              <label className={"bk-opt" + (formData.bike_type === "Standard Bicycle" ? " on" : "")}>
-                <input type="radio" value="Standard Bicycle" checked={formData.bike_type === "Standard Bicycle"} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
-                <div className="bk-emoji">🚲</div>
-                <div className="bk-opt-text"><strong>Standard Bicycle</strong><span>{idr(bikeDailyRate("Standard Bicycle"))} / Day</span></div>
-                <div className="bk-dot" />
-              </label>
-              <label className={"bk-opt" + (isEbike ? " on" : "")}>
-                <input type="radio" value="Electric Bike" checked={isEbike} onChange={e => setFormData({...formData, bike_type: e.target.value})} />
-                <div className="bk-emoji">⚡</div>
-                <div className="bk-opt-text"><strong>Electric Bike (E-Bike)</strong><span>{idr(bikeDailyRate("Electric Bike"))} / Day</span></div>
-                <div className="bk-dot" />
-              </label>
+              <QtyCard emoji="🚲" title="Standard Bicycle" price={idr(bikeDailyRate("Standard Bicycle")) + " / Day"} qty={stdQty} setQty={setStdQty} />
+              <QtyCard emoji="⚡" title="Electric Bike (E-Bike)" price={idr(bikeDailyRate("Electric Bike")) + " / Day"} qty={ebikeQty} setQty={setEbikeQty} />
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+                Total: {totalUnits} unit{stdQty > 0 && ebikeQty > 0 ? ` (${stdQty} bicycle + ${ebikeQty} e-bike)` : ""}
+              </p>
             </div>
 
             {/* DURASI */}
@@ -273,16 +291,14 @@ export default function BikeRentalForm() {
                   <li>Others Bike damages occurs during hiring will be advised in accordance to local bike repair site pricing.</li>
                   <li>
                     If the unit is lost, the guest agrees to pay a replacement fee of{" "}
-                    {isEbike ? (
-                      <strong>{idr(EBIKE_LOST_FEE)} (Electric Bike)</strong>
-                    ) : (
-                      <strong>{idr(STANDARD_LOST_FEE)} (Standard Bicycle) / {idr(PADLOCK_LOST_FEE)} (Padlock)</strong>
-                    )}{" "}
+                    {showStd && <strong>{idr(STANDARD_LOST_FEE)} (Standard Bicycle) / {idr(PADLOCK_LOST_FEE)} (Padlock)</strong>}
+                    {showStd && showEbike && " / "}
+                    {showEbike && <strong>{idr(EBIKE_LOST_FEE)} (Electric Bike)</strong>}{" "}
                     directly to the Front Office.
                   </li>
                 </ol>
 
-                {isEbike && (
+                {showEbike && (
                   <>
                     {/* TODO: paragraf pembebasan tanggung jawab (bagian atas kertas perjanjian) belum dimasukkan karena foto terpotong */}
                     <p className="sub">Electric Bike below details:</p>

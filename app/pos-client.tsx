@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
 import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS, EBIKE_SPLIT, BIKE_SPLIT } from "./config";
+import { processBikeUnits, updateBikeUnits, createBikeCompanion } from "./bike-actions";
 
 type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
 
@@ -1065,7 +1066,7 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const isElectric = mode === "electric";
   // Data dipisah: sepeda listrik hanya di E-Bike Dashboard, sepeda biasa hanya di Bike Dashboard
   const bikes = allBikes.filter((b: any) => !!b.bike_type?.includes("Electric") === isElectric);
-  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string }>>(() => {
+  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string; units?: { no: string; vendor?: string }[] }>>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("gili_bike_drafts");
       if (saved) return JSON.parse(saved);
@@ -1083,6 +1084,31 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
 
   const [editBike, setEditBike] = useState<any>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // ---------- Banyak unit per sewa ----------
+  const qtyOf = (b: any) => Math.max(1, b.quantity || 1);
+  const normalizeUnits = (units: any, qty: number) =>
+    Array.from({ length: qty }, (_, i) => ({ no: units?.[i]?.no ?? "", vendor: units?.[i]?.vendor ?? "" }));
+  const initialUnits = (b: any) => {
+    const saved = Array.isArray(b.units_detail) ? b.units_detail : [];
+    if (saved.length) return normalizeUnits(saved, qtyOf(b));
+    return normalizeUnits([{ no: b.unit_no || "", vendor: isElectric ? "" : (b.vendor || "") }], qtyOf(b));
+  };
+  const unitsFor = (b: any) => normalizeUnits(bikeInputs[b.id]?.units ?? initialUnits(b), qtyOf(b));
+  const setUnitField = (b: any, idx: number, field: "no" | "vendor", val: string) => {
+    const next = unitsFor(b).map((u, i) => (i === idx ? { ...u, [field]: val } : u));
+    handleBikeChange(b.id, 'units', next);
+  };
+
+  const openEdit = (b: any) =>
+    setEditBike({ ...b, quantity: qtyOf(b), units: initialUnits(b), extra_qty: 0, orig_qty: qtyOf(b), orig_days: b.duration_days || 1 });
+  const editQty = editBike ? Math.max(1, Math.floor(Number(editBike.quantity) || 1)) : 1;
+  const setEditQuantity = (n: number) =>
+    setEditBike((prev: any) => ({ ...prev, quantity: n, units: normalizeUnits(prev.units, n) }));
+  const setEditUnit = (i: number, field: "no" | "vendor", val: string) =>
+    setEditBike((prev: any) => ({ ...prev, units: prev.units.map((u: any, k: number) => (k === i ? { ...u, [field]: val } : u)) }));
+  const editMinQty = editBike && editBike.status === "DONE" ? editBike.orig_qty : 1;
+  const editOtherLabel = editBike?.bike_type?.includes("Electric") ? "Sepeda" : "E-Bike";
   
   // State Baru untuk Filter di Bike Dashboard
   const [searchQuery, setSearchQuery] = useState("");
@@ -1110,7 +1136,13 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const jatahPakJoe = grossIncome - jatahBanana - jatahHotelE;
 
   // Bike biasa: vendor mendapat 70% dari sewa sepedanya sendiri, hotel 30% dari semua sewa
-  const grossByVendor = (v: string) => monthBikes.filter((b: any) => b.vendor === v).reduce((sum: number, b: any) => sum + (b.total_price || 0), 0);
+  // Sewa dengan banyak unit: harga dibagi rata per unit, lalu tiap unit masuk ke vendor-nya masing-masing
+  const grossByVendor = (v: string) => Math.round(monthBikes.reduce((sum: number, b: any) => {
+    const per = (b.total_price || 0) / Math.max(1, b.quantity || 1);
+    const units = Array.isArray(b.units_detail) ? b.units_detail : [];
+    if (units.length > 0) return sum + per * units.filter((u: any) => u.vendor === v).length;
+    return sum + (b.vendor === v ? (b.total_price || 0) : 0);
+  }, 0));
   const grossIkin = grossByVendor("Mr Ikin");
   const grossLife = grossByVendor("Life is Good");
   const grossNoVendor = grossIncome - grossIkin - grossLife;
@@ -1123,21 +1155,23 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const fmtTime = (d: Date) => d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   const replaceBike = (updated: any) => setBikes((prev: any[]) => prev.map((b: any) => b.id === updated.id ? updated : b));
 
-  const handleProcessBike = async (e: React.FormEvent, id: string) => {
+  const handleProcessBike = async (e: React.FormEvent, bike: any) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const unit_no = form.unit.value;
-    const vendor = isElectric ? "" : form.vendor.value;
     const total_price = Number(form.price.value);
     const payment_method = form.payment.value;
+    const units = unitsFor(bike);
+    if (units.some((u) => !u.no.trim())) return alert("Isi nomor/warna untuk setiap unit.");
+    if (!isElectric && units.some((u) => !u.vendor)) return alert("Pilih vendor untuk setiap unit.");
 
-    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${vendor ? "Vendor: " + vendor + "\n" : ""}Total bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
+    const vendorSummary = isElectric ? "" : Array.from(new Set(units.map((u) => u.vendor))).join(" + ");
+    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${qtyOf(bike)} unit${vendorSummary ? " · Vendor: " + vendorSummary : ""}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
 
-    const res = await processBikeRental(id, { unit_no, vendor: vendor || undefined, total_price, payment_method, staff_name: staffName });
+    const res = await processBikeUnits(bike.id, { units, total_price, payment_method, staff_name: staffName });
     if (res.success) {
       replaceBike(res.data);
       alert("Pesanan sukses diproses ke dalam laporan!");
-      setBikeInputs(prev => { const next = {...prev}; delete next[id]; return next; });
+      setBikeInputs(prev => { const next = { ...prev }; delete next[bike.id]; return next; });
     } else alert("Gagal memproses: " + res.error);
   };
 
@@ -1158,16 +1192,25 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
   const handleSaveBikeEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingEdit(true);
-    const res = await updateBikeRental(editBike.id, {
+    const res = await updateBikeUnits(editBike.id, {
       guest_name: editBike.guest_name, room: editBike.room, whatsapp: editBike.whatsapp,
       bike_type: editBike.bike_type, duration_days: Number(editBike.duration_days),
-      unit_no: editBike.unit_no || "", vendor: editBike.bike_type?.includes("Electric") ? "" : (editBike.vendor || ""),
+      quantity: editQty, units: normalizeUnits(editBike.units, editQty), staff_name: staffName,
     });
+    if (!res.success) { setSavingEdit(false); return alert("Gagal menyimpan: " + res.error); }
+    replaceBike(res.data);
+
+    const extra = Math.floor(Number(editBike.extra_qty) || 0);
+    if (extra > 0) {
+      const otherType = editBike.bike_type?.includes("Electric") ? "Standard Bicycle" : "Electric Bike";
+      const add = await createBikeCompanion(editBike.id, otherType, extra);
+      if (add.success && add.data) setBikes((prev: any[]) => [add.data, ...prev]);
+      else alert("Data utama tersimpan, tapi gagal menambah " + otherType + ": " + add.error);
+    }
     setSavingEdit(false);
-    if (res.success) { replaceBike(res.data); setEditBike(null); } 
-    else alert("Gagal menyimpan: " + res.error);
+    setEditBike(null);
   };
-  
+
   // Logika Filter untuk Tabel Sepeda
   const filteredBikes = bikes.filter((b: any) => {
     const matchSearch = b.guest_name.toLowerCase().includes(searchQuery.toLowerCase()) || String(b.room).toLowerCase().includes(searchQuery.toLowerCase());
@@ -1198,7 +1241,7 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
           <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', maxWidth: '100%', maxHeight: '92vh', overflowY: 'auto', color: '#0f172a' }}>
             <h3 style={{ marginBottom: '4px' }}>Edit Sewa Sepeda</h3>
-            <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>Untuk perpanjangan, ubah Durasi (hari). Waktu siap sepeda ikut berubah.</p>
+            <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>Untuk perpanjangan, ubah Durasi (hari). Untuk menambah sepeda, ubah Jumlah Unit. Waktu siap sepeda ikut berubah.</p>
             <form onSubmit={handleSaveBikeEdit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label style={{ width: '30%', fontSize: '12px', fontWeight: 'bold' }}>Room<input required value={editBike.room} onChange={(e) => setEditBike({ ...editBike, room: e.target.value })} style={fieldStyle} /></label>
@@ -1207,23 +1250,49 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
               <label style={{ fontSize: '12px', fontWeight: 'bold' }}>WhatsApp<input required value={editBike.whatsapp} onChange={(e) => setEditBike({ ...editBike, whatsapp: e.target.value })} style={fieldStyle} /></label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Jenis Sepeda
-                  <select value={editBike.bike_type} onChange={(e) => setEditBike({ ...editBike, bike_type: e.target.value })} style={fieldStyle}>
+                  <select value={editBike.bike_type} disabled={editBike.status === "DONE"} onChange={(e) => setEditBike({ ...editBike, bike_type: e.target.value })} style={fieldStyle}>
                     <option value="Standard Bicycle">Standard Bicycle</option><option value="Electric Bike">Electric Bike</option>
                   </select>
                 </label>
-                <label style={{ width: '120px', fontSize: '12px', fontWeight: 'bold' }}>Durasi (Hari)<input required type="number" min={1} value={editBike.duration_days} onChange={(e) => setEditBike({ ...editBike, duration_days: e.target.value })} style={fieldStyle} /></label>
+                <label style={{ width: '120px', fontSize: '12px', fontWeight: 'bold' }}>Durasi (Hari)<input required type="number" min={editBike.status === "DONE" ? editBike.orig_days : 1} value={editBike.duration_days} onChange={(e) => setEditBike({ ...editBike, duration_days: e.target.value })} style={fieldStyle} /></label>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Nomor/Warna Unit<input value={editBike.unit_no || ""} onChange={(e) => setEditBike({ ...editBike, unit_no: e.target.value })} style={fieldStyle} /></label>
-                {!editBike.bike_type?.includes("Electric") && (
-                  <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
-                    <select value={editBike.vendor || ""} onChange={(e) => setEditBike({ ...editBike, vendor: e.target.value })} style={fieldStyle}>
-                      <option value="">- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
-                    </select>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
+                <div>
+                  <strong style={{ fontSize: '13px' }}>Jumlah Unit {editBike.bike_type?.includes("Electric") ? "E-Bike" : "Sepeda"}</strong>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Tambah unit langsung di sini</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button type="button" onClick={() => setEditQuantity(Math.max(editMinQty, editQty - 1))} style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>−</button>
+                  <b style={{ minWidth: '24px', textAlign: 'center', fontSize: '16px' }}>{editQty}</b>
+                  <button type="button" onClick={() => setEditQuantity(editQty + 1)} style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>+</button>
+                </div>
+              </div>
+              {editBike.units.map((u: any, i: number) => (
+                <div key={i} style={{ display: 'flex', gap: '10px' }}>
+                  <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Unit {i + 1}: Nomor/Warna
+                    <input value={u.no} onChange={(e) => setEditUnit(i, 'no', e.target.value)} style={fieldStyle} />
                   </label>
-                )}
+                  {!editBike.bike_type?.includes("Electric") && (
+                    <label style={{ flex: 1, fontSize: '12px', fontWeight: 'bold' }}>Vendor
+                      <select value={u.vendor || ""} onChange={(e) => setEditUnit(i, 'vendor', e.target.value)} style={fieldStyle}>
+                        <option value="">- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </label>
+                  )}
+                </div>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: '1px dashed #94a3b8', borderRadius: '8px', padding: '10px 12px' }}>
+                <div>
+                  <strong style={{ fontSize: '13px' }}>Tambah {editOtherLabel} sekaligus</strong>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Dibuat sebagai pesanan baru di dashboard {editOtherLabel} (data tamu, durasi, foto sama)</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button type="button" onClick={() => setEditBike({ ...editBike, extra_qty: Math.max(0, (Number(editBike.extra_qty) || 0) - 1) })} style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>−</button>
+                  <b style={{ minWidth: '24px', textAlign: 'center', fontSize: '16px' }}>{editBike.extra_qty || 0}</b>
+                  <button type="button" onClick={() => setEditBike({ ...editBike, extra_qty: (Number(editBike.extra_qty) || 0) + 1 })} style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>+</button>
+                </div>
               </div>
-              {editBike.status === "DONE" && <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>Pesanan ini sudah DONE. Mengubah durasi tidak mengubah transaksi yang sudah tercatat.</p>}
+              {editBike.status === "DONE" && <p style={{ fontSize: '12px', color: '#b45309', background: '#fef3c7', padding: '10px', borderRadius: '6px', margin: 0 }}>Pesanan ini sudah DONE. Menambah unit atau hari otomatis mencatat transaksi tambahan (metode bayar sama). Mengurangi unit atau hari tidak bisa dilakukan di sini.</p>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setEditBike(null)} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Batal</button>
                 <button type="submit" disabled={savingEdit} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{savingEdit ? "Menyimpan..." : "Simpan"}</button>
@@ -1308,13 +1377,13 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
               const returned = !!bike.returned_at;
               const due = dueAt(bike);
               const overdue = !returned && Date.now() > due.getTime();
-              const defaultPrice = bikeDailyRate(bike.bike_type) * (bike.duration_days || 1);
+              const defaultPrice = bikeDailyRate(bike.bike_type) * qtyOf(bike) * (bike.duration_days || 1);
               
               return (
               <div key={bike.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', gap: '12px', flexWrap: 'wrap' }}>
                   <div><strong style={{ display: 'block', color: '#0f172a', fontSize: '16px' }}>Room {bike.room} - {bike.guest_name}</strong><span style={{ fontSize: '13px', color: '#64748b' }}>WA: {bike.whatsapp} • {new Date(bike.created_at).toLocaleString('id-ID')}</span></div>
-                  <div style={{ textAlign: 'right' }}><strong style={{ display: 'block', color: bike.bike_type?.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type}</strong><span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span></div>
+                  <div style={{ textAlign: 'right' }}><strong style={{ display: 'block', color: bike.bike_type?.includes("Electric") ? '#b45309' : '#3b82f6' }}>{bike.bike_type} × {qtyOf(bike)} unit</strong><span style={{ fontSize: '13px', color: '#64748b' }}>Durasi: {bike.duration_days} Hari</span></div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
@@ -1322,23 +1391,29 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
                   {!isElectric && <span style={{ background: '#f1f5f9', color: '#334155', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>Vendor: {bike.vendor || '-'}</span>}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <button onClick={() => handleReturn(bike)} style={smallBtn(returned ? '#64748b' : '#0ea5e9')}>{returned ? 'Buka Lagi (Masih Disewa)' : 'Sepeda Kembali'}</button>
-                    <button onClick={() => setEditBike({ ...bike })} style={smallBtn('#3b82f6')}>Edit</button>
+                    <button onClick={() => openEdit(bike)} style={smallBtn('#3b82f6')}>Edit</button>
                     <button onClick={() => handleDeleteBike(bike)} style={smallBtn('#ef4444')}>Hapus</button>
                   </div>
                 </div>
 
                 {bike.status === "PENDING" ? (
-                  <form onSubmit={(e) => handleProcessBike(e, bike.id)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Nomor/Warna Unit
-                      <input name="unit" required value={bikeInputs[bike.id]?.unit_no ?? (bike.unit_no || "")} onChange={(e) => handleBikeChange(bike.id, 'unit_no', e.target.value)} placeholder="Cth: 1.5" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
-                    </label>
-                    {!isElectric && (
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Vendor
-                      <select name="vendor" required value={bikeInputs[bike.id]?.vendor ?? (bike.vendor || "")} onChange={(e) => handleBikeChange(bike.id, 'vendor', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
-                        <option value="" disabled>- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </label>
-                    )}
+                  <form onSubmit={(e) => handleProcessBike(e, bike)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1', flexWrap: 'wrap' }}>
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {unitsFor(bike).map((u, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Unit {i + 1}: Nomor/Warna
+                            <input required value={u.no} onChange={(e) => setUnitField(bike, i, 'no', e.target.value)} placeholder="Cth: 8" style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
+                          </label>
+                          {!isElectric && (
+                            <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Vendor
+                              <select required value={u.vendor} onChange={(e) => setUnitField(bike, i, 'vendor', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                                <option value="" disabled>- Pilih vendor -</option>{BIKE_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                              </select>
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                     <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', flex: 1, minWidth: '130px' }}>Harga Final (Rp)
                       <input name="price" type="number" required value={bikeInputs[bike.id]?.price ?? defaultPrice} onChange={(e) => handleBikeChange(bike.id, 'price', Number(e.target.value))} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px' }} />
                     </label>
@@ -1354,7 +1429,7 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
                   </form>
                 ) : (
                   <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE (Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
+                    <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE ({qtyOf(bike)} unit · Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
                     <strong style={{ color: '#065f46' }}>Total: {formatIDR(withFee(bike.total_price || 0, bike.payment_method))} ({bike.payment_method})</strong>
                   </div>
                 )}
