@@ -1062,11 +1062,11 @@ function StaffDashboard({ staffData = [] }: { staffData?: any[] }) {
   );
 }
 
-function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }: { mode: "standard" | "electric", bikes?: any[], setBikes: any, staffName: string }) {
+function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName, staffList = [] }: { mode: "standard" | "electric", bikes?: any[], setBikes: any, staffName: string, staffList?: any[] }) {
   const isElectric = mode === "electric";
   // Data dipisah: sepeda listrik hanya di E-Bike Dashboard, sepeda biasa hanya di Bike Dashboard
   const bikes = allBikes.filter((b: any) => !!b.bike_type?.includes("Electric") === isElectric);
-  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string; units?: { no: string; vendor?: string }[] }>>(() => {
+  const [bikeInputs, setBikeInputs] = useState<Record<string, { price?: number; method?: string; unit_no?: string; vendor?: string; fo?: string; units?: { no: string; vendor?: string }[] }>>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("gili_bike_drafts");
       if (saved) return JSON.parse(saved);
@@ -1163,11 +1163,13 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
     const units = unitsFor(bike);
     if (units.some((u) => !u.no.trim())) return alert("Isi nomor/warna untuk setiap unit.");
     if (!isElectric && units.some((u) => !u.vendor)) return alert("Pilih vendor untuk setiap unit.");
+    const fo = bikeInputs[bike.id]?.fo || "";
+    if (!fo) return alert("PENTING: Pilih FO sebelum klik Proses!");
 
     const vendorSummary = isElectric ? "" : Array.from(new Set(units.map((u) => u.vendor))).join(" + ");
     if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${qtyOf(bike)} unit${vendorSummary ? " · Vendor: " + vendorSummary : ""}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
 
-    const res = await processBikeUnits(bike.id, { units, total_price, payment_method, staff_name: staffName });
+    const res = await processBikeUnits(bike.id, { units, total_price, payment_method, staff_name: fo });
     if (res.success) {
       replaceBike(res.data);
       alert("Pesanan sukses diproses ke dalam laporan!");
@@ -1425,11 +1427,16 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName }
                     <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>Total Bayar
                       <strong style={{ marginTop: '8px', fontSize: '16px', color: '#0f172a' }}>{formatIDR(withFee(bikeInputs[bike.id]?.price ?? defaultPrice, bikeInputs[bike.id]?.method ?? "Cash"))}</strong>
                     </div>
+                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', fontWeight: 'bold', minWidth: '130px' }}>FO
+                      <select required value={bikeInputs[bike.id]?.fo ?? ""} onChange={(e) => handleBikeChange(bike.id, 'fo', e.target.value)} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginTop: '4px', background: '#fff' }}>
+                        <option value="" disabled>- Pilih FO -</option>{staffList.map((st: any) => <option key={st.dbId} value={st.name}>{st.name}</option>)}
+                      </select>
+                    </label>
                     <button type="submit" style={{ padding: '8px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '38px' }}>Proses (Selesai)</button>
                   </form>
                 ) : (
                   <div style={{ background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE ({qtyOf(bike)} unit · Unit: {bike.unit_no}) - Kasir: {bike.staff_name}</span>
+                    <span style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold' }}>✓ DONE ({qtyOf(bike)} unit · Unit: {bike.unit_no}) · FO: {bike.staff_name}</span>
                     <strong style={{ color: '#065f46' }}>Total: {formatIDR(withFee(bike.total_price || 0, bike.payment_method))} ({bike.payment_method})</strong>
                   </div>
                 )}
@@ -1560,8 +1567,8 @@ export default function POSClientApp({
       {activePage === "Case Report" && isAdmin && <CaseReportDashboard cases={initialCases} />}
       {activePage === "Master Data" && isAdmin && <MasterDataDashboard products={initialProducts} />}
       {activePage === "Staff" && isAdmin && <StaffDashboard staffData={initialStaff} />}
-      {activePage === "Bike Dashboard" && <BikeRentalDashboard mode="standard" bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
-      {activePage === "E-Bike Dashboard" && <BikeRentalDashboard mode="electric" bikes={bikes} setBikes={setBikes} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "Bike Dashboard" && <BikeRentalDashboard mode="standard" bikes={bikes} setBikes={setBikes} staffList={initialStaff} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
+      {activePage === "E-Bike Dashboard" && <BikeRentalDashboard mode="electric" bikes={bikes} setBikes={setBikes} staffList={initialStaff} staffName={realStaffData?.name || realStaffData?.nama || "FO"} />}
       
       {/* LAUNDRY DASHBOARD DIRENDER DI SINI */}
       {activePage === "Laundry Dashboard" && <LaundryDashboardContent staffList={initialStaff} />}

@@ -190,7 +190,7 @@ export async function updateBikeUnits(id: string, data: {
         const isElectric = !!data.bike_type?.includes("Electric");
         const itemCode = await ensureRentalItem(isElectric);
         const feeCode = fee > 0 ? await ensureFeeItem() : null;
-        const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
+        const staff = await prisma.staff.findFirst({ where: { nama: existing.staff_name || data.staff_name } });
 
         addOnTrx = {
           no_transaksi: "TRX-BIKE-ADD-" + Date.now(),
