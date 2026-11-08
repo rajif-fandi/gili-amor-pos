@@ -4,7 +4,7 @@ import { saveTransaction, addMasterItem, deleteMasterItem, updateMasterItem, add
 import { useMemo, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
-import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS, EBIKE_SPLIT, BIKE_SPLIT } from "./config";
+import { PAYMENT_METHODS, withFee, feeAmount, feeRate, isCard, methodGroup, laundryPrice, bikeDailyRate, BIKE_VENDORS, EBIKE_SPLIT, BIKE_SPLIT, MINIBAR_ITEMS, splitParts, splitSummary } from "./config";
 import { processBikeUnits, updateBikeUnits, createBikeCompanion } from "./bike-actions";
 
 type IconName = "home" | "reception" | "rent" | "boat" | "buy" | "reports" | "shift" | "search" | "bell" | "chevron" | "clock" | "bike" | "bed" | "coffee" | "laundry" | "spa" | "car" | "cake" | "utensils" | "cash" | "card" | "transfer" | "room" | "case" | "database" | "staff" | "dive" | "fish" | "camera" | "sun" | "water" | "shirt" | "check" | "printer" | "none" | "dashboard" | "bank" | "download";
@@ -232,7 +232,7 @@ function LaundryDashboardContent({ staffList = [] }: { staffList?: any[] }) {
     const method = data.payment_method || 'Cash';
     const finalPrice = withFee(laundryPrice(order.weight_kg, service), method);
     
-    if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nLayanan: ${service} (${order.weight_kg} Kg)\nTotal bayar: ${formatIDR(finalPrice)} (${method})`)) {
+    if (confirm(`Proses pesanan laundry ini ke laporan keuangan pusat?\n\nLayanan: ${service} (${order.weight_kg} Kg)\nTotal bayar: ${formatIDR(finalPrice)} (${method})${splitParts(method) ? "\n" + splitSummary(laundryPrice(order.weight_kg, service), method) : ""}`)) {
       const res = await processLaundryOrder(orderId, { service_type: service, payment_method: method, staff_name: data.staff_name });
       if (res && res.success) {
         alert("Pesanan berhasil diproses dan masuk ke Report!");
@@ -957,7 +957,7 @@ function MasterDataDashboard({ products = [] }: { products?: any[] }) {
               <div><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Service Name</label><input type="text" required value={formData.item_service} onChange={(e) => setFormData({...formData, item_service: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }} /></div>
               <div><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Default Rate (Rp)</label><input type="number" required value={formData.default_rate} onChange={(e) => setFormData({...formData, default_rate: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }} /></div>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', marginTop: '4px', background: '#fff' }}><option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option></select></div>
+                <div style={{ flex: 1 }}><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', marginTop: '4px', background: '#fff' }}><option value="CHARGE">CHARGE</option><option value="RENTAL">RENTAL</option><option value="ACTIVITY">ACTIVITY</option><option value="TRANSFER">TRANSFER</option><option value="RETAIL">RETAIL</option><option value="MINIBAR">MINIBAR</option></select></div>
                 <div style={{ flex: 1 }}><label style={{ fontSize: '12px', fontWeight: 'bold' }}>Billing Type</label><select value={formData.billing_type} onChange={(e) => setFormData({...formData, billing_type: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', marginTop: '4px', background: '#fff' }}><option value="PER_UNIT">PER_UNIT</option><option value="PER_DAY">PER_DAY</option><option value="PER_PAX">PER_PAX</option><option value="PER_TRIP">PER_TRIP</option></select></div>
               </div>
               {/* Pilihan Ikon / Logo Ditambahkan Kembali di Sini */}
@@ -1167,7 +1167,7 @@ function BikeRentalDashboard({ mode, bikes: allBikes = [], setBikes, staffName, 
     if (!fo) return alert("PENTING: Pilih FO sebelum klik Proses!");
 
     const vendorSummary = isElectric ? "" : Array.from(new Set(units.map((u) => u.vendor))).join(" + ");
-    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${qtyOf(bike)} unit${vendorSummary ? " · Vendor: " + vendorSummary : ""}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})`)) return;
+    if (!confirm(`Selesaikan pesanan ini? Laporan keuangan otomatis akan terbagi.\n\n${qtyOf(bike)} unit${vendorSummary ? " · Vendor: " + vendorSummary : ""}\nTotal bayar: ${formatIDR(withFee(total_price, payment_method))} (${payment_method})${splitParts(payment_method) ? "\n" + splitSummary(total_price, payment_method) : ""}`)) return;
 
     const res = await processBikeUnits(bike.id, { units, total_price, payment_method, staff_name: fo });
     if (res.success) {
@@ -1493,6 +1493,7 @@ export default function POSClientApp({
   const [guestName, setGuestName] = useState(""); 
   const [cart, setCart] = useState<Record<string, {qty: number, price: number}>>({});
   const [bookingData, setBookingData] = useState({ arrival: "", checkout: "", source: "Direct", notes: "" });
+  const [miniBarOpen, setMiniBarOpen] = useState(false);
 
   const isPosPage = ["Reception", "Rent", "Boat", "Buy"].includes(activePage);
   const allProducts = initialProducts || [];
@@ -1506,9 +1507,16 @@ export default function POSClientApp({
   
   const visibleProducts = useMemo(() => activeProducts.filter((p) => (activeCategory === "All Items" || p.category === activeCategory) && p.name.toLowerCase().includes(query.toLowerCase())), [activeCategory, query, activeProducts]);
   const cartItems = Object.entries(cart).map(([id, data]) => {
-    const p = activeProducts.find(x => String(x.id) === id);
-    return { ...p, id, name: p?.name || id, qty: data.qty, price: data.price, color: p?.color || 'blue', icon: p?.icon || 'room' };
+    const p = activeProducts.find(x => String(x.id) === id) || allProducts.find(x => String(x.id) === id);
+    const mb = MINIBAR_ITEMS.find(x => x.id === id);
+    return { ...p, id, name: p?.name || mb?.name || id, qty: data.qty, price: data.price, color: p?.color || 'blue', icon: p?.icon || (mb ? 'coffee' : 'room') };
   });
+
+  // Item Mini Bar: diambil dari Master Data (kategori MINIBAR); kalau belum ada, pakai daftar bawaan di config.ts
+  const miniBarFromDb = allProducts.filter((p: any) => p.category === "MINIBAR").map((p: any) => ({ id: String(p.id), name: p.name, price: p.price }));
+  const miniBarProducts: { id: string; name: string; price: number }[] = miniBarFromDb.length ? miniBarFromDb : MINIBAR_ITEMS;
+  const isMiniBarTrigger = (p: any) => String(p.id).toUpperCase() === "MINI-BAR" || /^mini[\s-]*bar$/i.test(p.name || "");
+  const miniBarInCart = miniBarProducts.some((m) => cart[m.id]);
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const showAdvancedBooking = cartItems.some(item => {
     const n = item.name.toLowerCase();
@@ -1582,7 +1590,7 @@ export default function POSClientApp({
         <div className="catalog-body">
           <div className="product-grid">
             {visibleProducts.map((product) => (
-              <button className="product-card" key={product.id} onClick={() => updateQuantity(product.id, 1, product.price)}>
+              <button className="product-card" key={product.id} onClick={() => (isMiniBarTrigger(product) ? setMiniBarOpen(true) : updateQuantity(product.id, 1, product.price))}>
                 <div className={`product-icon ${product.color}`}><Icon name={product.icon as IconName} size={27} /></div>
                 <div className="product-copy"><h3>{product.name}</h3><p>{product.category}</p></div>
                 <strong>{formatIDR(product.price)}</strong><span className="add-product">+</span>
@@ -1623,6 +1631,35 @@ export default function POSClientApp({
           ))}
           {cartItems.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', marginTop: '40px' }}>Keranjang kosong</p>}
 
+          {(miniBarOpen || miniBarInCart) && (
+            <div style={{ marginTop: '20px', padding: '16px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '13px', margin: 0, color: '#0f172a' }}>Mini Bar Details</h4>
+                <button onClick={() => setMiniBarOpen(false)} style={{ border: 'none', background: '#e2e8f0', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Tutup</button>
+              </div>
+              {miniBarProducts.map((mb) => {
+                const qty = cart[mb.id]?.qty || 0;
+                return (
+                  <div key={mb.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px 0', borderBottom: '1px dashed #bae6fd' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: qty > 0 ? '#0369a1' : '#334155' }}>{mb.name}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>{formatIDR(cart[mb.id]?.price ?? mb.price)}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                      <button onClick={() => updateQuantity(mb.id, -1, mb.price)} disabled={qty === 0} style={{ border: 'none', background: 'none', cursor: qty === 0 ? 'not-allowed' : 'pointer', fontSize: '16px', opacity: qty === 0 ? 0.4 : 1 }}>−</button>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '16px', textAlign: 'center' }}>{qty}</span>
+                      <button onClick={() => updateQuantity(mb.id, 1, mb.price)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px' }}>+</button>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '13px', fontWeight: 'bold' }}>
+                <span>Subtotal Mini Bar</span>
+                <span>{formatIDR(miniBarProducts.reduce((sum, mb) => sum + (cart[mb.id] ? cart[mb.id].qty * cart[mb.id].price : 0), 0))}</span>
+              </div>
+            </div>
+          )}
+
           {showAdvancedBooking && cartItems.length > 0 && (
             <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
               <h4 style={{ fontSize: '13px', marginBottom: '12px', color: '#0f172a' }}>Booking & Travel Details</h4>
@@ -1650,6 +1687,11 @@ export default function POSClientApp({
                 <span>Subtotal {formatIDR(subtotal)} + biaya kartu {payment}</span><strong>+ {formatIDR(feeAmount(subtotal, payment))}</strong>
               </div>
             )}
+            {splitParts(payment) && (
+              <div style={{ fontSize: '12px', color: '#1e3a8a', background: '#eff6ff', padding: '8px 10px', borderRadius: '6px', marginBottom: '14px', lineHeight: 1.5 }}>
+                {splitSummary(subtotal, payment)}
+              </div>
+            )}
             <div style={{ marginBottom: '16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>Payment Method</p>
               <select value={payment} onChange={(e) => setPayment(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#fff', fontSize: '13px', fontWeight: 'bold', color: '#1e3a8a', cursor: 'pointer' }}>
@@ -1662,10 +1704,10 @@ export default function POSClientApp({
               const finalOrderData = { 
                 guestName: guestName || "Walk-in Guest", paymentMethod: payment, totalAmount: subtotal, room: roomInputValue,
                 staffId: currentStaff?.dbId, arrivalDate: bookingData.arrival, checkoutDate: bookingData.checkout, bookingSource: bookingData.source, paymentNotes: bookingData.notes,
-                items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty })) 
+                items: cartItems.map(item => ({ item_code: item.id, qty: item.qty, rate: item.price, total: item.price * item.qty, ...(miniBarProducts.some((m) => m.id === item.id) ? { name: item.name, category: "MINIBAR" } : {}) })) 
               };
               const result = await saveTransaction(finalOrderData);
-              if (result.success) { setCart({}); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); } 
+              if (result.success) { setCart({}); setMiniBarOpen(false); setBookingData({ arrival: "", checkout: "", source: "Direct", notes: "" }); } 
               else alert("Gagal menyimpan: " + result.error);
             }} 
             style={{ width: '100%', padding: '16px', background: cartItems.length === 0 ? '#cbd5e1' : '#10b981', color: '#fff', borderRadius: '8px', border: 'none', cursor: cartItems.length === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '15px', display: 'flex', justifyContent: 'space-between' }}>

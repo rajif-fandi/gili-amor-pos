@@ -1,7 +1,8 @@
 "use server";
 import { prisma } from "./db";
 import { revalidatePath } from "next/cache";
-import { feeAmount, isUnpaid, bikeDailyRate } from "./config";
+import { feeAmount, isUnpaid, bikeDailyRate, splitParts } from "./config";
+import { recordSplitTransactions } from "./payment-rows";
 
 // ---------- helper (tidak diekspor) ----------
 type Unit = { no: string; vendor?: string };
@@ -120,7 +121,18 @@ export async function processBikeUnits(id: string, data: {
     const feeCode = fee > 0 ? await ensureFeeItem() : null;
     const staff = await prisma.staff.findFirst({ where: { nama: data.staff_name } });
 
-    await prisma.transaksi.create({
+    if (splitParts(data.payment_method)) {
+      await recordSplitTransactions({
+        baseNo: "TRX-BIKE-" + Date.now(),
+        nama_tamu: updated.guest_name || "Bike Guest",
+        room: updated.room || "-",
+        staff_id: staff ? staff.staff_id : "STF-DEFAULT",
+        notes: `Bike Rental - ${qty} unit (${joinNos(units)}) - ${updated.duration_days} Days`,
+        method: data.payment_method,
+        baseTotal,
+        items: [{ item_code: itemCode, qty: 1, duration: updated.duration_days || 1, rate: baseTotal, total: baseTotal }],
+      });
+    } else await prisma.transaksi.create({
       data: {
         no_transaksi: "TRX-BIKE-" + Date.now(),
         nama_tamu: updated.guest_name || "Bike Guest",
@@ -172,6 +184,7 @@ export async function updateBikeUnits(id: string, data: {
 
     let newTotal: number | undefined;
     let addOnTrx: any = null;
+    let addOnSplit: any = null;
 
     if (existing.status === "DONE") {
       if (data.bike_type !== existing.bike_type) {
@@ -192,7 +205,18 @@ export async function updateBikeUnits(id: string, data: {
         const feeCode = fee > 0 ? await ensureFeeItem() : null;
         const staff = await prisma.staff.findFirst({ where: { nama: existing.staff_name || data.staff_name } });
 
-        addOnTrx = {
+        if (splitParts(method)) {
+          addOnSplit = {
+            baseNo: "TRX-BIKE-ADD-" + Date.now(),
+            nama_tamu: data.guest_name || existing.guest_name || "Bike Guest",
+            room: data.room || existing.room || "-",
+            staff_id: staff ? staff.staff_id : "STF-DEFAULT",
+            notes: `Tambahan sewa ${data.bike_type} (+${newQty - oldQty} unit, +${newDays - oldDays} hari) - ${existing.rental_no}`,
+            method,
+            baseTotal: delta,
+            items: [{ item_code: itemCode, qty: 1, duration: 1, rate: delta, total: delta }],
+          };
+        } else addOnTrx = {
           no_transaksi: "TRX-BIKE-ADD-" + Date.now(),
           nama_tamu: data.guest_name || existing.guest_name || "Bike Guest",
           payment_method: method,
@@ -230,7 +254,10 @@ export async function updateBikeUnits(id: string, data: {
       },
     });
 
-    if (addOnTrx) {
+    if (addOnSplit) {
+      await recordSplitTransactions(addOnSplit);
+      revalidatePath("/");
+    } else if (addOnTrx) {
       await prisma.transaksi.create({ data: addOnTrx });
       revalidatePath("/");
     }

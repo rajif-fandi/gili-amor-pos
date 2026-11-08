@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from "./db";
-import { feeAmount, isUnpaid, laundryPrice } from "./config";
+import { feeAmount, isUnpaid, laundryPrice, splitParts } from "./config";
+import { recordSplitTransactions } from "./payment-rows";
 
 async function ensureFeeItem() {
   const code = "FEE-CARD";
@@ -25,7 +26,7 @@ export async function saveTransaction(data: {
   checkoutDate?: string;     
   bookingSource?: string;    
   paymentNotes?: string;     
-  items: { item_code: string; qty: number; rate: number; total: number }[];
+  items: { item_code: string; qty: number; rate: number; total: number; name?: string; category?: string }[];
 }) {
   try {
     let staffId = data.staffId;
@@ -46,9 +47,9 @@ export async function saveTransaction(data: {
         await prisma.masterItem.create({
           data: {
             item_code: String(item.item_code),
-            item_service: `Product ${item.item_code}`, 
+            item_service: item.name || `Product ${item.item_code}`, 
             default_rate: Number(item.rate),           
-            category: "CHARGE",                        
+            category: item.category || "CHARGE",                        
             billing_type: "PER_UNIT",                  
             desk: "coffee",
             notes: "Auto-generated",
@@ -64,7 +65,20 @@ export async function saveTransaction(data: {
     const unpaid = isUnpaid(data.paymentMethod);
     const feeCode = fee > 0 ? await ensureFeeItem() : null;
 
-    const newTransaction = await prisma.transaksi.create({
+    const isSplit = !!splitParts(data.paymentMethod);
+    const newTransaction = isSplit
+      ? await recordSplitTransactions({
+          baseNo: noTransaksi,
+          nama_tamu: data.guestName,
+          room: data.room || "-",
+          staff_id: staffId as string,
+          notes: data.paymentNotes,
+          method: data.paymentMethod,
+          baseTotal,
+          items: data.items.map((item) => ({ item_code: String(item.item_code), qty: item.qty, rate: item.rate, total: item.total })),
+          extra: { arrival_date: data.arrivalDate, checkout_date: data.checkoutDate, booking_source: data.bookingSource },
+        })
+      : await prisma.transaksi.create({
       data: {
         no_transaksi: noTransaksi,
         nama_tamu: data.guestName,
@@ -595,7 +609,18 @@ export async function processLaundryOrder(id: string, data: {
     const staffId = staff ? staff.staff_id : "STF-DEFAULT";
 
     // 4. MASUKKAN KE DATABASE TRANSAKSI UTAMA AGAR MUNCUL DI REPORT (sudah termasuk biaya kartu)
-    await prisma.transaksi.create({
+    if (splitParts(data.payment_method)) {
+      await recordSplitTransactions({
+        baseNo: "TRX-LND-" + Date.now(),
+        nama_tamu: updated.guest_name,
+        room: updated.room || "-",
+        staff_id: staffId,
+        notes: `Laundry ${existing.weight_kg}Kg - ${service}`,
+        method: data.payment_method,
+        baseTotal,
+        items: [{ item_code: itemCode, qty: 1, duration: 1, rate: baseTotal, total: baseTotal }],
+      });
+    } else await prisma.transaksi.create({
       data: {
         no_transaksi: "TRX-LND-" + Date.now(),
         nama_tamu: updated.guest_name,
