@@ -1514,7 +1514,10 @@ export default function POSClientApp({
 
   // Item Mini Bar: diambil dari Master Data (kategori MINIBAR); kalau belum ada, pakai daftar bawaan di config.ts
   const miniBarFromDb = allProducts.filter((p: any) => p.category === "MINIBAR").map((p: any) => ({ id: String(p.id), name: p.name, price: p.price }));
-  const miniBarProducts: { id: string; name: string; price: number }[] = miniBarFromDb.length ? miniBarFromDb : MINIBAR_ITEMS;
+    const miniBarProducts: { id: string; name: string; price: number }[] = [
+    ...MINIBAR_ITEMS.map((d) => miniBarFromDb.find((x) => x.id === d.id) || d),
+    ...miniBarFromDb.filter((x) => !MINIBAR_ITEMS.some((d) => d.id === x.id)),
+  ];
   const isMiniBarTrigger = (p: any) => String(p.id).toUpperCase() === "MINI-BAR" || /^mini[\s-]*bar$/i.test(p.name || "");
   const miniBarInCart = miniBarProducts.some((m) => cart[m.id]);
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
